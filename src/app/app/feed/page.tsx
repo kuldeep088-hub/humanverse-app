@@ -80,7 +80,7 @@ export default function FeedPage() {
         pseudonym:pseudonyms!posts_pseudonym_id_fkey(id, display_name, avatar_url, user_id),
         thread:threads!posts_thread_id_fkey(id, slug, name),
         circle:circles!posts_circle_id_fkey(id, name),
-        reactions(type),
+        reactions(type, user_id),
         replies(count)
       `)
       .or(`visibility.eq.public,and(visibility.eq.circle,circle_id.in.(${circleIds.join(',') || '00000000-0000-0000-0000-000000000000'})),visibility.eq.pseudonymous`)
@@ -138,6 +138,7 @@ export default function FeedPage() {
       <Composer
         circles={circles}
         pseudonym={pseudonym}
+        onPostCreated={fetchFeed}
       />
 
       {posts.length === 0 ? (

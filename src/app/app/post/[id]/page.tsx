@@ -65,7 +65,7 @@ export default function PostPage() {
         pseudonym:pseudonyms!posts_pseudonym_id_fkey(id, display_name, avatar_url, user_id),
         thread:threads!posts_thread_id_fkey(id, slug, name),
         circle:circles!posts_circle_id_fkey(id, name),
-        reactions(type)
+        reactions(type, user_id)
       `)
       .eq('id', id)
       .single()
@@ -101,7 +101,7 @@ export default function PostPage() {
         *,
         author:profiles!replies_author_id_fkey(id, display_name, professional_context, avatar_url),
         pseudonym:pseudonyms!replies_pseudonym_id_fkey(id, display_name, avatar_url, user_id),
-        reactions(type)
+        reactions(type, user_id)
       `)
       .eq('post_id', id)
       .order('created_at', { ascending: true })

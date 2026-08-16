@@ -11,10 +11,10 @@ import {
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { LogOut, Settings, Bell, Search, User, Hash, Users, Shield } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { AppNav } from '@/components/app/nav'
-
 import { createClient } from '@/lib/supabase/server'
 
 interface AppLayoutProps {
@@ -22,79 +22,64 @@ interface AppLayoutProps {
 }
 
 export default async function AppLayout({ children }: AppLayoutProps) {
-  let currentUser = {
-    id: 'dev-user-1',
-    email: 'dev@humanverse.fun',
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/login')
   }
 
-  let currentProfile: {
+  const currentUser = {
+    id: user.id,
+    email: user.email || 'user@humanverse.fun',
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single()
+
+  const currentProfile: {
     id: string
     display_name: string
     professional_context: string | null
     avatar_url: string | null
   } = {
-    id: 'dev-user-1',
-    display_name: 'Dev User',
-    professional_context: 'Product designer at a fintech startup',
-    avatar_url: null,
+    id: user.id,
+    display_name: profile?.display_name || user.user_metadata?.display_name || user.email?.split('@')[0] || 'User',
+    professional_context: profile?.professional_context || user.user_metadata?.professional_context || null,
+    avatar_url: profile?.avatar_url || null,
   }
 
-  let currentPseudonym: { id: string; display_name: string } | null = null
-  let unreadCount = 0
-
-  try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (user) {
-      currentUser = {
+  // Ensure profile exists in database
+  if (!profile) {
+    try {
+      await supabase.from('profiles').upsert({
         id: user.id,
-        email: user.email || 'user@humanverse.fun',
-      }
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-
-      if (profile) {
-        currentProfile = {
-          id: profile.id,
-          display_name: profile.display_name || user.email?.split('@')[0] || 'User',
-          professional_context: profile.professional_context || null,
-          avatar_url: profile.avatar_url || null,
-        }
-      } else {
-        currentProfile = {
-          id: user.id,
-          display_name: user.user_metadata?.display_name || user.email?.split('@')[0] || 'User',
-          professional_context: null,
-          avatar_url: null,
-        }
-      }
-
-      const { data: pseudonym } = await supabase
-        .from('pseudonyms')
-        .select('id, display_name')
-        .eq('user_id', user.id)
-        .single()
-
-      if (pseudonym) {
-        currentPseudonym = pseudonym
-      }
-
-      const { count } = await supabase
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('read', false)
-
-      unreadCount = count || 0
+        display_name: currentProfile.display_name,
+        professional_context: currentProfile.professional_context,
+      })
+    } catch {
+      // Ignore upsert error
     }
-  } catch {
-    // Falls back to mock values if supabase fails or is in mock mode
   }
+
+  const { data: pseudonym } = await supabase
+    .from('pseudonyms')
+    .select('id, display_name')
+    .eq('user_id', user.id)
+    .single()
+
+  const currentPseudonym = pseudonym || null
+
+  const { count } = await supabase
+    .from('notifications')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .eq('read', false)
+
+  const unreadCount = count || 0
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950">
@@ -120,6 +105,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
                 placeholder="Search posts, threads, people"
                 className="h-full w-full rounded-md border border-gray-200 bg-muted px-10 py-2 text-sm placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-700 dark:placeholder:text-gray-500"
                 aria-label="Search"
+                readOnly
               />
             </Link>
 
@@ -142,8 +128,8 @@ export default async function AppLayout({ children }: AppLayoutProps) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0">
                   <Avatar
-                    src={currentProfile?.avatar_url || undefined}
-                    fallbackName={currentProfile?.display_name || 'User'}
+                    src={currentProfile.avatar_url || undefined}
+                    fallbackName={currentProfile.display_name || 'User'}
                     className="h-10 w-10"
                   />
                 </Button>
@@ -151,7 +137,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium truncate">{currentProfile?.display_name}</p>
+                    <p className="text-sm font-medium truncate">{currentProfile.display_name}</p>
                     <p className="text-xs text-gray-500 truncate">{currentUser.email}</p>
                   </div>
                 </DropdownMenuLabel>
@@ -172,7 +158,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
                   <DropdownMenuItem asChild>
                     <Link href="/app/settings/pseudonym" className="flex w-full items-center gap-2">
                       <Hash className="h-4 w-4" />
-                      Pseudonym
+                      Pseudonym ({currentPseudonym.display_name})
                     </Link>
                   </DropdownMenuItem>
                 )}

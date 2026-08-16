@@ -29,6 +29,7 @@ interface ComposerProps {
   initialContent?: string
   circles: { id: string; name: string }[]
   pseudonym: { id: string; display_name: string } | null
+  onPostCreated?: () => void
 }
 
 const VISIBILITY_OPTIONS = [
@@ -37,7 +38,7 @@ const VISIBILITY_OPTIONS = [
   { value: 'pseudonymous', label: 'Pseudonymous', icon: UserCircle, desc: 'Posted as your pseudonym' },
 ] as const
 
-export function Composer({ initialContent = '', circles, pseudonym }: ComposerProps) {
+export function Composer({ initialContent = '', circles, pseudonym, onPostCreated }: ComposerProps) {
   const [content, setContent] = useState(initialContent)
   const [visibility, setVisibility] = useState<'public' | 'circle' | 'pseudonymous'>('public')
   const [selectedCircle, setSelectedCircle] = useState<string>('')
@@ -46,10 +47,13 @@ export function Composer({ initialContent = '', circles, pseudonym }: ComposerPr
   const supabase = createClient()
   const { userId } = useCurrentUser()
 
-  const mockUser = { id: userId || 'dev-user-1', email: 'dev@humanverse.fun' }
-
   const handleSubmit = async (saveDraft = false) => {
     if (!content.trim() && !saveDraft) return
+
+    if (!userId) {
+      toast.error('You must be signed in to post')
+      return
+    }
 
     setIsSubmitting(true)
     try {
@@ -60,12 +64,14 @@ export function Composer({ initialContent = '', circles, pseudonym }: ComposerPr
         circleId = selectedCircle
         if (!circleId) {
           toast.error('Select a circle')
+          setIsSubmitting(false)
           return
         }
       } else if (visibility === 'pseudonymous') {
         if (!pseudonym) {
           toast.error('Set up a pseudonym first')
           router.push('/app/settings/pseudonym')
+          setIsSubmitting(false)
           return
         }
         pseudonymId = pseudonym.id
@@ -94,7 +100,7 @@ export function Composer({ initialContent = '', circles, pseudonym }: ComposerPr
 
       if (saveDraft) {
         const { error } = await supabase.from('drafts').upsert({
-          user_id: mockUser.id,
+          user_id: userId,
           content,
           thread_id: threadId,
           visibility,
@@ -107,7 +113,7 @@ export function Composer({ initialContent = '', circles, pseudonym }: ComposerPr
       }
 
       const { error } = await supabase.from('posts').insert({
-        author_id: mockUser.id,
+        author_id: userId,
         content,
         visibility,
         thread_id: threadId,
@@ -120,6 +126,9 @@ export function Composer({ initialContent = '', circles, pseudonym }: ComposerPr
       setContent('')
       setSelectedCircle('')
       toast.success('Posted')
+      if (onPostCreated) {
+        onPostCreated()
+      }
       router.refresh()
     } catch {
       toast.error('That didn\'t post. Your draft is saved — try again in a moment.')
