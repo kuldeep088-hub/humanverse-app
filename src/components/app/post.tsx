@@ -26,6 +26,10 @@ import {
   Hash,
   Share2,
   Check,
+  Handshake,
+  AlertCircle,
+  Award,
+  Heart,
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -43,11 +47,15 @@ interface PostProps {
   } | null
 }
 
-const REACTIONS: { type: ReactionType; label: string; icon: string }[] = [
-  { type: 'been_there', label: 'Been there', icon: '🤝' },
-  { type: 'oof', label: 'Oof', icon: '😬' },
-  { type: 'respect', label: 'Respect', icon: '🫡' },
-  { type: 'needed_this', label: 'Needed this', icon: '💚' },
+const REACTIONS: {
+  type: ReactionType
+  label: string
+  icon: typeof Handshake
+}[] = [
+  { type: 'been_there', label: 'Been there', icon: Handshake },
+  { type: 'oof', label: 'Oof', icon: AlertCircle },
+  { type: 'respect', label: 'Respect', icon: Award },
+  { type: 'needed_this', label: 'Needed this', icon: Heart },
 ]
 
 export function PostComponent({
@@ -289,7 +297,7 @@ export function PostComponent({
           {/* Reactions and Reply Bar */}
           <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-1.5">
-              {REACTIONS.map(({ type, label, icon }) => {
+              {REACTIONS.map(({ type, label, icon: Icon }) => {
                 const count = reactionCounts[type] || 0
                 const isActive = post.user_reaction === type
                 return (
@@ -298,14 +306,14 @@ export function PostComponent({
                     type="button"
                     onClick={() => handleReact(type)}
                     className={cn(
-                      'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all active:scale-95',
+                      'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all active:scale-95 border',
                       isActive
-                        ? 'bg-primary text-primary-foreground shadow-sm font-semibold'
-                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100 dark:bg-gray-800/80 dark:text-gray-300 dark:hover:bg-gray-800'
+                        ? 'bg-primary text-primary-foreground border-primary shadow-xs font-semibold'
+                        : 'bg-gray-50 text-gray-600 border-gray-200/60 hover:bg-gray-100 hover:text-gray-900 dark:bg-gray-800/80 dark:text-gray-300 dark:border-gray-700/60 dark:hover:bg-gray-800'
                     )}
                   >
-                    <span>{icon}</span>
-                    <span className="hidden sm:inline">{label}</span>
+                    <Icon className="h-3.5 w-3.5 shrink-0" />
+                    <span>{label}</span>
                     {count > 0 && <span className="ml-0.5 text-[11px] font-bold">{count}</span>}
                   </button>
                 )

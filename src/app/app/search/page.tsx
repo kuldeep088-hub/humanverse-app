@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { debounce } from '@/lib/utils'
-import { Post } from '@/types'
+import { Post, ReactionType } from '@/types'
 import {
   Search,
   X,
@@ -24,20 +24,16 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 
-interface SearchPostRow {
+interface RawPost {
   id: string
   author_id: string
   pseudonym_id: string | null
   thread_id: string | null
   circle_id: string | null
   content: string
-  visibility: Post['visibility']
+  visibility: 'public' | 'circle' | 'pseudonymous'
   created_at: string
   updated_at: string
-  author: Post['author']
-  pseudonym: Post['pseudonym']
-  thread: Post['thread']
-  reactions?: { type: string; user_id: string }[]
 }
 
 const POPULAR_SEARCH_TAGS = [
@@ -92,20 +88,15 @@ export default function SearchPage() {
       try {
         const cleanQuery = q.trim().replace(/^#/, '')
 
+        // 1. Fetch matches
         const [postsRes, threadsRes, profilesRes] = await Promise.all([
           supabase
             .from('posts')
-            .select(`
-              *,
-              author:profiles!posts_author_id_fkey(id, display_name, professional_context, avatar_url),
-              pseudonym:pseudonyms!posts_pseudonym_id_fkey(id, display_name, avatar_url, user_id),
-              thread:threads!posts_thread_id_fkey(id, slug, name),
-              reactions(type, user_id)
-            `)
+            .select('*')
             .eq('visibility', 'public')
             .ilike('content', `%${cleanQuery}%`)
             .order('created_at', { ascending: false })
-            .limit(20),
+            .limit(25),
           supabase
             .from('threads')
             .select('*')
@@ -118,22 +109,59 @@ export default function SearchPage() {
             .limit(10),
         ])
 
-        const processedPosts: Post[] = (postsRes.data || []).map((post: SearchPostRow) => {
-          const reactionCounts = { been_there: 0, oof: 0, respect: 0, needed_this: 0 }
-          let userReaction: Post['user_reaction'] = null
+        const rawPosts = postsRes.data || []
+        const authorIds = Array.from(new Set(rawPosts.map((p: RawPost) => p.author_id)))
+        const pseudoIds = Array.from(new Set(rawPosts.map((p: RawPost) => p.pseudonym_id).filter(Boolean)))
+        const threadIds = Array.from(new Set(rawPosts.map((p: RawPost) => p.thread_id).filter(Boolean)))
+        const postIds = rawPosts.map((p: RawPost) => p.id)
 
-          post.reactions?.forEach((r) => {
-            reactionCounts[r.type as keyof typeof reactionCounts]++
-          })
+        // 2. Fetch related details for posts
+        const [profDataRes, pseudoDataRes, threadDataRes, rxRes, repRes] = await Promise.all([
+          authorIds.length > 0 ? supabase.from('profiles').select('*').in('id', authorIds) : Promise.resolve({ data: [] }),
+          pseudoIds.length > 0 ? supabase.from('pseudonyms').select('*').in('id', pseudoIds) : Promise.resolve({ data: [] }),
+          threadIds.length > 0 ? supabase.from('threads').select('*').in('id', threadIds) : Promise.resolve({ data: [] }),
+          postIds.length > 0 ? supabase.from('reactions').select('post_id, type, user_id').in('post_id', postIds) : Promise.resolve({ data: [] }),
+          postIds.length > 0 ? supabase.from('replies').select('id, post_id').in('post_id', postIds) : Promise.resolve({ data: [] }),
+        ])
 
-          const userReactionData = post.reactions?.find((r) => r.user_id === currentUserId)
-          if (userReactionData) userReaction = userReactionData.type as Post['user_reaction']
+        const profMap = new Map((profDataRes.data || []).map((p: { id: string }) => [p.id, p]))
+        const pMap = new Map((pseudoDataRes.data || []).map((p: { id: string }) => [p.id, p]))
+        const tMap = new Map((threadDataRes.data || []).map((t: { id: string }) => [t.id, t]))
+
+        const processedPosts: Post[] = rawPosts.map((post: RawPost) => {
+          const postRx = (rxRes.data || []).filter((r: { post_id: string }) => r.post_id === post.id)
+          const postRep = (repRes.data || []).filter((r: { post_id: string }) => r.post_id === post.id)
+
+          const reactionCounts = {
+            been_there: postRx.filter((r: { type: string }) => r.type === 'been_there').length,
+            oof: postRx.filter((r: { type: string }) => r.type === 'oof').length,
+            respect: postRx.filter((r: { type: string }) => r.type === 'respect').length,
+            needed_this: postRx.filter((r: { type: string }) => r.type === 'needed_this').length,
+          }
+
+          let userReaction: ReactionType | null = null
+          if (currentUserId) {
+            const uRx = postRx.find((r: { user_id: string }) => r.user_id === currentUserId)
+            if (uRx) userReaction = uRx.type as ReactionType
+          }
 
           return {
-            ...post,
+            id: post.id,
+            author_id: post.author_id,
+            pseudonym_id: post.pseudonym_id,
+            thread_id: post.thread_id,
+            circle_id: post.circle_id,
+            content: post.content,
+            visibility: post.visibility,
+            created_at: post.created_at,
+            updated_at: post.updated_at,
+            author: profMap.get(post.author_id) || { id: post.author_id, display_name: 'Human Member', professional_context: null, avatar_url: null },
+            pseudonym: post.pseudonym_id ? pMap.get(post.pseudonym_id) || null : null,
+            thread: post.thread_id ? tMap.get(post.thread_id) || null : null,
+            circle: null,
             reaction_counts: reactionCounts,
             user_reaction: userReaction,
-            reply_count: 0,
+            reply_count: postRep.length,
           }
         })
 

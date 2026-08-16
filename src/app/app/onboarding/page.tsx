@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { Loader2, User, Briefcase, Image as ImageIcon, Hash } from 'lucide-react'
+import { Loader2, User, Briefcase, Image as ImageIcon, Hash, Check } from 'lucide-react'
 import Image from 'next/image'
 import { ThemeToggle } from '@/components/theme-toggle'
 
@@ -128,7 +128,7 @@ export default function OnboardingPage() {
                   'border border-gray-300 text-gray-400 dark:border-gray-600 dark:text-gray-500'
                 }`}
               >
-                {i + 1 < step ? '✓' : s.num}
+                {i + 1 < step ? <Check className="h-4 w-4" /> : s.num}
               </div>
               {i < steps.length - 1 && (
                 <div className={`h-1 w-12 ${i + 1 < step ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-700'}`} />

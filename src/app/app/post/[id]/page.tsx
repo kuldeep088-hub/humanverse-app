@@ -4,11 +4,21 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useCurrentUser } from '@/lib/use-current-user'
 import { PostComponent } from '@/components/app/post'
+import { fetchPostDetail } from '@/lib/data-service'
 import { Post, ReactionType } from '@/types'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Loader2, ChevronLeft, Send, MessageSquare } from 'lucide-react'
+import {
+  Loader2,
+  ChevronLeft,
+  Send,
+  MessageSquare,
+  Handshake,
+  AlertCircle,
+  Award,
+  Heart,
+} from 'lucide-react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { formatRelativeTime } from '@/lib/utils'
@@ -33,19 +43,16 @@ interface ReplyWithRelations {
   reactions: Reaction[]
 }
 
-const REACTION_EMOJI: Record<ReactionType, string> = {
-  been_there: '🤝',
-  oof: '😬',
-  respect: '🫡',
-  needed_this: '💚',
-}
-
-const REACTION_LABELS: Record<ReactionType, string> = {
-  been_there: 'Been there',
-  oof: 'Oof',
-  respect: 'Respect',
-  needed_this: 'Needed this',
-}
+const REACTION_CONFIG: {
+  type: ReactionType
+  label: string
+  icon: typeof Handshake
+}[] = [
+  { type: 'been_there', label: 'Been there', icon: Handshake },
+  { type: 'oof', label: 'Oof', icon: AlertCircle },
+  { type: 'respect', label: 'Respect', icon: Award },
+  { type: 'needed_this', label: 'Needed this', icon: Heart },
+]
 
 export default function PostPage() {
   const params = useParams<{ id: string }>()
@@ -79,84 +86,21 @@ export default function PostPage() {
       setCurrentUserProfile(profData)
     }
 
-    // 2. Fetch post
-    const { data: postData } = await supabase
-      .from('posts')
-      .select(`
-        *,
-        author:profiles!posts_author_id_fkey(id, display_name, professional_context, avatar_url),
-        pseudonym:pseudonyms!posts_pseudonym_id_fkey(id, display_name, avatar_url, user_id),
-        thread:threads!posts_thread_id_fkey(id, slug, name),
-        circle:circles!posts_circle_id_fkey(id, name),
-        reactions(type, user_id)
-      `)
-      .eq('id', id)
-      .single()
+    // 2. Fetch post detail & replies via data service
+    const { post: fetchedPost, replies: fetchedReplies } = await fetchPostDetail(
+      supabase,
+      id,
+      currentUserId
+    )
 
-    if (!postData) {
+    if (!fetchedPost) {
       setIsNotFound(true)
       setIsLoading(false)
       return
     }
 
-    // Check circle access
-    let hasAccess = postData.visibility === 'public' || postData.visibility === 'pseudonymous' || postData.author_id === currentUserId
-    if (!hasAccess && postData.visibility === 'circle' && postData.circle_id) {
-      const { data: memberData } = await supabase
-        .from('circle_members')
-        .select('id')
-        .eq('circle_id', postData.circle_id)
-        .eq('user_id', currentUserId)
-        .limit(1)
-      hasAccess = !!memberData?.length
-    }
-
-    if (!hasAccess) {
-      setIsNotFound(true)
-      setIsLoading(false)
-      return
-    }
-
-    // 3. Fetch replies
-    const { data: repliesData } = await supabase
-      .from('replies')
-      .select(`
-        *,
-        author:profiles!replies_author_id_fkey(id, display_name, professional_context, avatar_url),
-        pseudonym:pseudonyms!replies_pseudonym_id_fkey(id, display_name, avatar_url, user_id),
-        reactions(type, user_id)
-      `)
-      .eq('post_id', id)
-      .order('created_at', { ascending: true })
-
-    const replyRows = (repliesData as ReplyWithRelations[]) || []
-
-    const reactionCounts = {
-      been_there: 0,
-      oof: 0,
-      respect: 0,
-      needed_this: 0,
-    }
-    let userReaction: ReactionType | null = null
-
-    postData.reactions?.forEach((r: Reaction) => {
-      reactionCounts[r.type as keyof typeof reactionCounts]++
-    })
-
-    const userReactionData = postData.reactions?.find((r: Reaction) => r.user_id === currentUserId)
-    if (userReactionData) {
-      userReaction = userReactionData.type as ReactionType
-    }
-
-    const processedPost: Post = {
-      ...postData,
-      reaction_counts: reactionCounts,
-      user_reaction: userReaction,
-      reply_count: replyRows.length,
-    }
-
-    setReplies(replyRows)
-    setPost(processedPost)
+    setPost(fetchedPost)
+    setReplies(fetchedReplies as ReplyWithRelations[])
     setIsLoading(false)
   }, [id, currentUserId])
 
@@ -367,9 +311,9 @@ export default function PostPage() {
                       {reply.content}
                     </p>
 
-                    {/* Reactions for Reply */}
+                    {/* Reactions for Reply (NO EMOJIS, Clean SVG Icons) */}
                     <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                      {(['been_there', 'oof', 'respect', 'needed_this'] as const).map((type) => {
+                      {REACTION_CONFIG.map(({ type, label, icon: Icon }) => {
                         const count = replyCounts[type]
                         const isActive = replyUserReaction === type
                         return (
@@ -377,14 +321,14 @@ export default function PostPage() {
                             key={type}
                             type="button"
                             onClick={() => handleReplyReact(reply.id, type)}
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium transition-all ${
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all border ${
                               isActive
-                                ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
-                                : 'bg-gray-50 text-gray-600 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                                ? 'bg-primary text-primary-foreground border-primary font-semibold shadow-xs'
+                                : 'bg-gray-50 text-gray-600 border-gray-200/60 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700/60 dark:hover:bg-gray-700'
                             }`}
                           >
-                            <span>{REACTION_EMOJI[type]}</span>
-                            <span className="hidden sm:inline">{REACTION_LABELS[type]}</span>
+                            <Icon className="h-3 w-3 shrink-0" />
+                            <span className="hidden sm:inline">{label}</span>
                             {count > 0 && <span className="font-bold ml-0.5">{count}</span>}
                           </button>
                         )

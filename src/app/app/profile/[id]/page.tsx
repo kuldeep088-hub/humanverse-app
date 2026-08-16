@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useCurrentUser } from '@/lib/use-current-user'
 import { PostComponent } from '@/components/app/post'
+import { fetchFeedPosts } from '@/lib/data-service'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Post, ReactionType } from '@/types'
+import { Post } from '@/types'
 import { EditProfileModal } from '@/components/app/edit-profile-modal'
 import {
   Briefcase,
@@ -22,35 +23,12 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
 
-interface Reaction {
-  type: string
-  user_id: string
-}
-
 interface Profile {
   id: string
   display_name: string
   professional_context: string | null
   avatar_url: string | null
   created_at: string
-}
-
-interface PostWithRelations {
-  id: string
-  author_id: string
-  pseudonym_id: string | null
-  thread_id: string | null
-  circle_id: string | null
-  content: string
-  visibility: 'public' | 'circle' | 'pseudonymous'
-  created_at: string
-  updated_at: string
-  author: { id: string; display_name: string; professional_context: string | null; avatar_url: string | null } | null
-  pseudonym: { id: string; display_name: string; avatar_url: string | null; user_id: string } | null
-  thread: { id: string; slug: string; name: string } | null
-  circle: { id: string; name: string } | null
-  reactions: Reaction[]
-  replies: { count: number }[]
 }
 
 export default function ProfilePage() {
@@ -72,6 +50,7 @@ export default function ProfilePage() {
     if (!targetUserId) return
     const supabase = createClient()
 
+    // 1. Fetch Profile
     const { data: profileData } = await supabase
       .from('profiles')
       .select('*')
@@ -85,54 +64,19 @@ export default function ProfilePage() {
     }
     setProfile(profileData as Profile)
 
-    // Get public posts for others; all visibility for own profile
-    const visibilityFilter = isOwnProfile
-      ? 'visibility.in.(public,circle,pseudonymous)'
-      : 'visibility.eq.public'
-
-    const { data: postsData } = await supabase
-      .from('posts')
-      .select(`
-        *,
-        author:profiles!posts_author_id_fkey(id, display_name, professional_context, avatar_url),
-        pseudonym:pseudonyms!posts_pseudonym_id_fkey(id, display_name, avatar_url, user_id),
-        thread:threads!posts_thread_id_fkey(id, slug, name),
-        circle:circles!posts_circle_id_fkey(id, name),
-        reactions(type, user_id),
-        replies(count)
-      `)
-      .eq('author_id', targetUserId)
-      .or(visibilityFilter)
-      .order('created_at', { ascending: false })
-      .limit(50)
-
-    const processedPosts: Post[] = (postsData as PostWithRelations[] || []).map(post => {
-      const reactionCounts = {
-        been_there: 0,
-        oof: 0,
-        respect: 0,
-        needed_this: 0,
-      }
-      let userReaction: ReactionType | null = null
-
-      post.reactions?.forEach((r: Reaction) => {
-        reactionCounts[r.type as keyof typeof reactionCounts]++
-      })
-
-      const userReactionData = post.reactions?.find((r: Reaction) => r.user_id === currentUserId)
-      if (userReactionData) {
-        userReaction = userReactionData.type as ReactionType
-      }
-
-      return {
-        ...post,
-        reaction_counts: reactionCounts,
-        user_reaction: userReaction,
-        reply_count: post.replies?.[0]?.count || 0,
-      }
+    // 2. Fetch author's posts via data service
+    const userPosts = await fetchFeedPosts(supabase, {
+      currentUserId,
+      authorId: targetUserId,
+      limit: 100,
     })
 
-    setPosts(processedPosts)
+    // Filter visibility: other users only see public posts
+    const visiblePosts = isOwnProfile
+      ? userPosts
+      : userPosts.filter(p => p.visibility === 'public')
+
+    setPosts(visiblePosts)
     setIsLoading(false)
   }, [targetUserId, isOwnProfile, currentUserId])
 
@@ -305,6 +249,7 @@ export default function ProfilePage() {
               onUpdate={fetchProfile}
               showThreadLink={true}
               currentUserId={currentUserId}
+              currentUserProfile={profile}
             />
           ))}
         </div>

@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useCurrentUser } from '@/lib/use-current-user'
 import { Composer } from '@/components/app/composer'
 import { PostComponent } from '@/components/app/post'
-import { Post, ReactionType } from '@/types'
+import { fetchFeedPosts } from '@/lib/data-service'
+import { Post } from '@/types'
 import {
   Loader2,
   Sparkles,
@@ -22,29 +23,6 @@ interface Circle {
 
 interface CircleWithCircle {
   circle: Circle | null
-}
-
-interface Reaction {
-  type: string
-  user_id: string
-}
-
-interface PostWithRelations {
-  id: string
-  author_id: string
-  pseudonym_id: string | null
-  thread_id: string | null
-  circle_id: string | null
-  content: string
-  visibility: 'public' | 'circle' | 'pseudonymous'
-  created_at: string
-  updated_at: string
-  author: { id: string; display_name: string; professional_context: string | null; avatar_url: string | null } | null
-  pseudonym: { id: string; display_name: string; avatar_url: string | null; user_id: string } | null
-  thread: { id: string; slug: string; name: string } | null
-  circle: { id: string; name: string } | null
-  reactions: Reaction[]
-  replies: { count: number }[]
 }
 
 interface UserProfile {
@@ -96,51 +74,13 @@ export default function FeedPage() {
       .single()
     setPseudonym(pseudonymData as { id: string; display_name: string } | null)
 
-    // 4. Get feed posts: public posts + circle posts user is member of + pseudonymous posts
-    const circleIds = foundCircles.map(c => c.id)
-    const { data: postsData } = await supabase
-      .from('posts')
-      .select(`
-        *,
-        author:profiles!posts_author_id_fkey(id, display_name, professional_context, avatar_url),
-        pseudonym:pseudonyms!posts_pseudonym_id_fkey(id, display_name, avatar_url, user_id),
-        thread:threads!posts_thread_id_fkey(id, slug, name),
-        circle:circles!posts_circle_id_fkey(id, name),
-        reactions(type, user_id),
-        replies(count)
-      `)
-      .or(`visibility.eq.public,and(visibility.eq.circle,circle_id.in.(${circleIds.join(',') || '00000000-0000-0000-0000-000000000000'})),visibility.eq.pseudonymous`)
-      .order('created_at', { ascending: false })
-      .limit(100)
-
-    // Process reaction counts and user reactions
-    const processedPosts: Post[] = (postsData as PostWithRelations[] || []).map(post => {
-      const reactionCounts = {
-        been_there: 0,
-        oof: 0,
-        respect: 0,
-        needed_this: 0,
-      }
-      let userReaction: ReactionType | null = null
-
-      post.reactions?.forEach((r) => {
-        reactionCounts[r.type as keyof typeof reactionCounts]++
-      })
-
-      const userReactionData = post.reactions?.find((r) => r.user_id === currentUserId)
-      if (userReactionData) {
-        userReaction = userReactionData.type as ReactionType
-      }
-
-      return {
-        ...post,
-        reaction_counts: reactionCounts,
-        user_reaction: userReaction,
-        reply_count: post.replies?.[0]?.count || 0,
-      }
+    // 4. Robust feed fetch without fragile PostgREST foreign key hint errors
+    const fetchedPosts = await fetchFeedPosts(supabase, {
+      currentUserId,
+      limit: 100,
     })
 
-    setPosts(processedPosts)
+    setPosts(fetchedPosts)
     setIsLoading(false)
   }, [currentUserId])
 
