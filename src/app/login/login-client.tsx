@@ -44,6 +44,7 @@ export default function LoginClient() {
           password,
         })
         if (error) throw error
+        toast.success('Signed in successfully!')
         router.push(redirectTo)
         router.refresh()
       }
