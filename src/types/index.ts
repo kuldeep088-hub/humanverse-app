@@ -1,0 +1,163 @@
+export type Visibility = 'public' | 'circle' | 'pseudonymous'
+
+export type ReactionType = 'been_there' | 'oof' | 'respect' | 'needed_this'
+
+export interface Profile {
+  id: string
+  display_name: string
+  professional_context: string | null
+  avatar_url: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ProfileMinimal {
+  id: string
+  display_name: string
+  professional_context: string | null
+  avatar_url: string | null
+}
+
+export interface Pseudonym {
+  id: string
+  user_id: string
+  display_name: string
+  avatar_url: string | null
+  created_at?: string
+}
+
+export interface Thread {
+  id: string
+  slug: string
+  name: string
+  description: string | null
+  post_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ThreadMinimal {
+  id: string
+  slug: string
+  name: string
+  description?: string | null
+  post_count?: number
+  created_at?: string
+  updated_at?: string
+}
+
+export interface Circle {
+  id: string
+  name: string
+  owner_id: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CircleMinimal {
+  id: string
+  name: string
+  owner_id?: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface CircleMember {
+  id: string
+  circle_id: string
+  user_id: string
+  joined_at: string
+}
+
+export interface Post {
+  id: string
+  author_id: string
+  pseudonym_id: string | null
+  thread_id: string | null
+  circle_id: string | null
+  content: string
+  visibility: Visibility
+  created_at: string
+  updated_at: string
+  author?: ProfileMinimal | null
+  pseudonym?: Pseudonym | null
+  thread?: ThreadMinimal | null
+  circle?: CircleMinimal | null
+  reaction_counts?: Record<ReactionType, number>
+  user_reaction?: ReactionType | null
+  reply_count?: number
+}
+
+export interface Reply {
+  id: string
+  post_id: string
+  author_id: string
+  pseudonym_id: string | null
+  parent_reply_id: string | null
+  content: string
+  created_at: string
+  updated_at: string
+  author?: ProfileMinimal | null
+  pseudonym?: Pseudonym | null
+  reaction_counts?: Record<ReactionType, number>
+  user_reaction?: ReactionType | null
+  replies?: Reply[]
+}
+
+export interface Reaction {
+  id: string
+  user_id: string
+  post_id: string | null
+  reply_id: string | null
+  type: ReactionType
+  created_at: string
+}
+
+export interface Notification {
+  id: string
+  user_id: string
+  type: 'reply' | 'thread_reply' | 'circle_invite' | 'circle_join' | 'moderation' | 'security'
+  title: string
+  message: string
+  reference_id: string | null
+  reference_type: 'post' | 'reply' | 'thread' | 'circle' | null
+  read: boolean
+  created_at: string
+}
+
+export interface Report {
+  id: string
+  reporter_id: string
+  reported_user_id: string | null
+  post_id: string | null
+  reply_id: string | null
+  reason: string
+  details: string | null
+  status: 'pending' | 'reviewed' | 'dismissed' | 'actioned'
+  created_at: string
+  reviewed_at: string | null
+  reviewed_by: string | null
+}
+
+export interface ModerationAction {
+  id: string
+  admin_id: string
+  target_user_id: string | null
+  post_id: string | null
+  reply_id: string | null
+  action: 'remove_content' | 'restore_content' | 'suspend_user' | 'warn_user'
+  reason: string
+  created_at: string
+}
+
+export interface Draft {
+  id: string
+  user_id: string
+  content: string
+  thread_id: string | null
+  visibility: Visibility
+  circle_id: string | null
+  pseudonym_id: string | null
+  created_at: string
+  updated_at: string
+}

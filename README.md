@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Humanverse
 
-## Getting Started
+A professional network for the parts of working life that don't fit on a professional profile — posts, replies, reactions, circles, pseudonymous posting, and threads like #LaidOff and #RejectedAgain.
 
-First, run the development server:
+Built with Next.js (App Router), Supabase (auth + Postgres + storage), Tailwind CSS v4, and shadcn-style UI components.
+
+## Local development
+
+The app runs fully in mock mode (in-memory DB + localStorage) when no Supabase session exists — no backend needed to explore the UI:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# open http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Connecting a real Supabase backend
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Create a project at [supabase.com](https://supabase.com).
+2. Copy `.env.example` to `.env.local` and fill in `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+3. Apply the schema. Either:
+   - Paste the contents of `supabase-schema.sql` into the Supabase dashboard → SQL Editor, or
+   - `supabase db push` if you use the CLI with migrations.
+4. Apply the RLS fix (`supabase/migrations/0001_rls_fix.sql`) and notification triggers (`supabase/migrations/0002_notification_triggers.sql`) in the SQL Editor — both are idempotent.
+5. Create the `avatars` storage bucket (included at the bottom of `supabase-schema.sql`).
+6. Configure auth redirect URLs in Supabase → Authentication → URL Configuration: add `http://localhost:3000/auth/callback` and your production URL.
+7. Restart `npm run dev` and sign up at `/signup`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Seed demo data (optional)
 
-## Learn More
+Set `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`, then:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run db:seed
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+This creates 4 demo users (password: `humanverse-demo`) plus threads, posts, replies, and reactions.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Scripts
 
-## Deploy on Vercel
+| Command          | Description                          |
+| ---------------- | ------------------------------------ |
+| `npm run dev`    | Start the dev server                 |
+| `npm run build`  | Production build                     |
+| `npm run lint`   | Run ESLint                           |
+| `npm run db:seed`| Seed a real Supabase project         |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## How the mock mode works
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`src/lib/mock-data.ts` is a dependency-free in-memory implementation of the Supabase query API (select/insert/upsert/update/delete with filters, relations, and aggregates). `src/lib/supabase/client.ts` picks it automatically when Supabase env vars are missing or no session cookie exists, so the whole app works without a backend. The seed in mock mode mirrors `supabase/seed.mjs`.
+
+## Project structure
+
+- `src/app/app/*` — authenticated pages (feed, threads, circles, search, profile, settings, notifications, onboarding)
+- `src/app/login`, `src/app/signup` — auth pages
+- `src/components/app/*` — feed post, composer, nav
+- `src/lib/supabase/*` — browser/server client wrappers
+- `supabase/` — schema, migrations, seed script
