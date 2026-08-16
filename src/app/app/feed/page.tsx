@@ -6,6 +6,7 @@ import { useCurrentUser } from '@/lib/use-current-user'
 import { Composer } from '@/components/app/composer'
 import { PostComponent } from '@/components/app/post'
 import { fetchFeedPosts } from '@/lib/data-service'
+import { isPostSaved, getSavedPostIds } from '@/lib/bookmarks'
 import { Post } from '@/types'
 import {
   Loader2,
@@ -14,6 +15,8 @@ import {
   Users,
   Compass,
   ShieldCheck,
+  Bookmark,
+  RefreshCw,
 } from 'lucide-react'
 
 interface Circle {
@@ -37,52 +40,63 @@ export default function FeedPage() {
   const [circles, setCircles] = useState<Circle[]>([])
   const [pseudonym, setPseudonym] = useState<{ id: string; display_name: string } | null>(null)
   const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(null)
-  const [activeTab, setActiveTab] = useState<'all' | 'trending' | 'circles' | 'reflections'>('all')
+  const [activeTab, setActiveTab] = useState<'all' | 'trending' | 'circles' | 'reflections' | 'saved'>('all')
+  const [savedCount, setSavedCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+  const [hasNewPosts, setHasNewPosts] = useState(false)
 
-  const fetchFeed = useCallback(async () => {
+  const fetchFeed = useCallback(async (isBackground = false) => {
     if (!currentUserId) return
     const supabase = createClient()
 
-    // 1. Fetch current user profile
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('display_name, avatar_url, professional_context')
-      .eq('id', currentUserId)
-      .single()
+    if (!isBackground) {
+      // 1. Fetch current user profile
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('display_name, avatar_url, professional_context')
+        .eq('id', currentUserId)
+        .single()
 
-    if (profileData) {
-      setCurrentUserProfile(profileData)
+      if (profileData) {
+        setCurrentUserProfile(profileData)
+      }
+
+      // 2. Get user's circles for composer & feed
+      const { data: circlesData } = await supabase
+        .from('circle_members')
+        .select('circle:circles(id, name)')
+        .eq('user_id', currentUserId)
+
+      const foundCircles: Circle[] = (circlesData as CircleWithCircle[] || [])
+        .map(c => c.circle as unknown as Circle)
+        .filter((c): c is Circle => c !== null && typeof c === 'object' && 'id' in c && 'name' in c)
+      setCircles(foundCircles)
+
+      // 3. Get user's pseudonym
+      const { data: pseudonymData } = await supabase
+        .from('pseudonyms')
+        .select('id, display_name')
+        .eq('user_id', currentUserId)
+        .single()
+      setPseudonym(pseudonymData as { id: string; display_name: string } | null)
     }
 
-    // 2. Get user's circles for composer & feed
-    const { data: circlesData } = await supabase
-      .from('circle_members')
-      .select('circle:circles(id, name)')
-      .eq('user_id', currentUserId)
-
-    const foundCircles: Circle[] = (circlesData as CircleWithCircle[] || [])
-      .map(c => c.circle as unknown as Circle)
-      .filter((c): c is Circle => c !== null && typeof c === 'object' && 'id' in c && 'name' in c)
-    setCircles(foundCircles)
-
-    // 3. Get user's pseudonym
-    const { data: pseudonymData } = await supabase
-      .from('pseudonyms')
-      .select('id, display_name')
-      .eq('user_id', currentUserId)
-      .single()
-    setPseudonym(pseudonymData as { id: string; display_name: string } | null)
-
-    // 4. Robust feed fetch without fragile PostgREST foreign key hint errors
+    // 4. Robust feed fetch
     const fetchedPosts = await fetchFeedPosts(supabase, {
       currentUserId,
       limit: 100,
     })
 
-    setPosts(fetchedPosts)
+    if (isBackground && posts.length > 0 && fetchedPosts.length > posts.length) {
+      setHasNewPosts(true)
+    } else {
+      setPosts(fetchedPosts)
+      setHasNewPosts(false)
+    }
+
+    setSavedCount(getSavedPostIds().length)
     setIsLoading(false)
-  }, [currentUserId])
+  }, [currentUserId, posts.length])
 
   useEffect(() => {
     const run = async () => {
@@ -91,10 +105,20 @@ export default function FeedPage() {
     run()
   }, [fetchFeed])
 
+  // Listen to bookmark changes
+  useEffect(() => {
+    const handleBookmarkChange = () => {
+      setSavedCount(getSavedPostIds().length)
+    }
+    window.addEventListener('humanverse_bookmarks_updated', handleBookmarkChange)
+    return () => window.removeEventListener('humanverse_bookmarks_updated', handleBookmarkChange)
+  }, [])
+
   // Filter posts by active tab
   const filteredPosts = posts.filter(post => {
     if (activeTab === 'all') return true
     if (activeTab === 'circles') return post.visibility === 'circle'
+    if (activeTab === 'saved') return isPostSaved(post.id)
     if (activeTab === 'reflections') {
       const content = post.content.toLowerCase()
       const threadSlug = post.thread?.slug?.toLowerCase() || ''
@@ -159,8 +183,19 @@ export default function FeedPage() {
         circles={circles}
         pseudonym={pseudonym}
         currentUserProfile={currentUserProfile}
-        onPostCreated={fetchFeed}
+        onPostCreated={() => fetchFeed()}
       />
+
+      {/* Real-time New Posts Banner */}
+      {hasNewPosts && (
+        <button
+          onClick={() => fetchFeed()}
+          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-semibold shadow-sm hover:opacity-90 transition-opacity animate-in fade-in slide-in-from-top-2"
+        >
+          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+          New thoughts have been shared. Click to refresh.
+        </button>
+      )}
 
       {/* Feed Filter Navigation Tabs */}
       <div className="flex items-center gap-1.5 border-b border-gray-200 dark:border-gray-800 pb-2 overflow-x-auto no-scrollbar">
@@ -211,6 +246,18 @@ export default function FeedPage() {
           <Sparkles className="h-3.5 w-3.5 text-blue-500" />
           Reflections & Wins
         </button>
+
+        <button
+          onClick={() => setActiveTab('saved')}
+          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+            activeTab === 'saved'
+              ? 'bg-primary text-primary-foreground shadow-xs'
+              : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800 dark:hover:bg-gray-800'
+          }`}
+        >
+          <Bookmark className="h-3.5 w-3.5 text-emerald-500" />
+          Saved ({savedCount})
+        </button>
       </div>
 
       {/* Posts Stream */}
@@ -220,12 +267,16 @@ export default function FeedPage() {
           <p className="text-base font-semibold text-gray-900 dark:text-white">
             {activeTab === 'circles'
               ? 'No posts in your private circles yet'
+              : activeTab === 'saved'
+              ? 'No saved stories in your collection'
               : activeTab === 'reflections'
               ? 'No reflections shared under this filter yet'
               : 'No posts in the feed yet'}
           </p>
           <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
-            {activeTab === 'circles'
+            {activeTab === 'saved'
+              ? 'Click the bookmark icon on any post card to save stories here for future reading.'
+              : activeTab === 'circles'
               ? 'Share a thought with your circle using the composer above with the "Private Circle" option.'
               : 'Write what actually happened today to inspire and connect with other members.'}
           </p>
@@ -236,7 +287,7 @@ export default function FeedPage() {
             <PostComponent
               key={post.id}
               post={post}
-              onUpdate={fetchFeed}
+              onUpdate={() => fetchFeed()}
               currentUserId={currentUserId}
               currentUserProfile={currentUserProfile}
             />

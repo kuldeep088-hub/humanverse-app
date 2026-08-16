@@ -95,18 +95,28 @@ export default async function AppLayout({ children }: AppLayoutProps) {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Desktop Unified Search */}
             <Link
               href="/app/search"
-              className="relative hidden sm:flex h-10 w-64"
+              className="relative hidden sm:flex h-10 w-64 lg:w-72"
             >
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 type="search"
-                placeholder="Search posts, threads, people"
-                className="h-full w-full rounded-md border border-gray-200 bg-muted px-10 py-2 text-sm placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-700 dark:placeholder:text-gray-500"
+                placeholder="Search posts, threads, people..."
+                className="h-full w-full rounded-xl border border-gray-200 bg-gray-50/80 px-10 py-2 text-xs placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-800 dark:bg-gray-900 dark:placeholder:text-gray-500 cursor-pointer"
                 aria-label="Search"
                 readOnly
               />
+            </Link>
+
+            {/* Mobile Search Icon Button */}
+            <Link
+              href="/app/search"
+              className="sm:hidden relative p-2 text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-white"
+              aria-label="Search"
+            >
+              <Search className="h-5 w-5" />
             </Link>
 
             <Link

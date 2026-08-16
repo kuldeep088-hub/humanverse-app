@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,8 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { formatRelativeTime } from '@/lib/utils'
 import { Post, ReactionType } from '@/types'
+import { FormattedContent } from '@/components/app/formatted-content'
+import { isPostSaved, toggleSavedPost } from '@/lib/bookmarks'
 import {
   MessageCircle,
   MoreHorizontal,
@@ -30,6 +32,7 @@ import {
   AlertCircle,
   Award,
   Heart,
+  Bookmark,
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -72,7 +75,16 @@ export function PostComponent({
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(post.content)
   const [isCopied, setIsCopied] = useState(false)
+  const [isSaved, setIsSaved] = useState(() => isPostSaved(post.id))
   const supabase = createClient()
+
+  useEffect(() => {
+    const handleBookmarksChanged = () => {
+      setIsSaved(isPostSaved(post.id))
+    }
+    window.addEventListener('humanverse_bookmarks_updated', handleBookmarksChanged)
+    return () => window.removeEventListener('humanverse_bookmarks_updated', handleBookmarksChanged)
+  }, [post.id])
 
   const isPseudonymous = post.visibility === 'pseudonymous' || !!post.pseudonym_id
   const author = isPseudonymous ? post.pseudonym : post.author
@@ -102,6 +114,12 @@ export function PostComponent({
       })
     }
     onUpdate()
+  }
+
+  const handleToggleBookmark = () => {
+    const saved = toggleSavedPost(post.id)
+    setIsSaved(saved)
+    toast.success(saved ? 'Post saved to your collection' : 'Post removed from saved')
   }
 
   const handleReply = async () => {
@@ -229,8 +247,21 @@ export function PostComponent({
             <div className="flex items-center gap-1 ml-auto">
               <button
                 type="button"
+                onClick={handleToggleBookmark}
+                className={`p-1.5 rounded-lg transition-colors ${
+                  isSaved
+                    ? 'text-primary bg-primary/10'
+                    : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
+                }`}
+                title={isSaved ? 'Remove from Saved' : 'Save Story'}
+              >
+                <Bookmark className={`h-3.5 w-3.5 ${isSaved ? 'fill-current' : ''}`} />
+              </button>
+
+              <button
+                type="button"
                 onClick={handleCopyLink}
-                className="p-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
                 title="Share link"
               >
                 {isCopied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Share2 className="h-3.5 w-3.5" />}
@@ -271,8 +302,8 @@ export function PostComponent({
             </Link>
           )}
 
-          {/* Post Content Body */}
-          <div className="mt-3 text-gray-950 dark:text-gray-100 text-[15px] leading-relaxed">
+          {/* Post Content Body with Markdown & Media Support */}
+          <div className="mt-3">
             {isEditing ? (
               <div className="space-y-2 mt-1">
                 <Textarea
@@ -290,7 +321,7 @@ export function PostComponent({
                 </div>
               </div>
             ) : (
-              <p className="whitespace-pre-wrap">{post.content}</p>
+              <FormattedContent content={post.content} />
             )}
           </div>
 

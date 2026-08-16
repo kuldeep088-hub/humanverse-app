@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useCurrentUser } from '@/lib/use-current-user'
 import { Button } from '@/components/ui/button'
@@ -25,9 +25,14 @@ import {
   Loader2,
   ChevronDown,
   Sparkles,
+  Image as ImageIcon,
+  X,
+  Code,
+  Bold,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import Image from 'next/image'
 
 interface ComposerProps {
   initialContent?: string
@@ -60,6 +65,9 @@ export function Composer({
   const [visibility, setVisibility] = useState<'public' | 'circle' | 'pseudonymous'>('public')
   const [selectedCircle, setSelectedCircle] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [attachedImage, setAttachedImage] = useState<string | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
   const supabase = createClient()
   const { userId } = useCurrentUser()
@@ -72,8 +80,41 @@ export function Composer({
     }
   }
 
+  const handleInsertCode = () => {
+    setContent(prev => `${prev}\n\`\`\`\n// Add your snippet here\n\`\`\`\n`)
+  }
+
+  const handleInsertBold = () => {
+    setContent(prev => `${prev} **bold text** `)
+  }
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 3 * 1024 * 1024) {
+      toast.error('Image must be under 3MB')
+      return
+    }
+
+    setImageFile(file)
+    const reader = new FileReader()
+    reader.onload = () => {
+      setAttachedImage(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleRemoveImage = () => {
+    setAttachedImage(null)
+    setImageFile(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
   const handleSubmit = async (saveDraft = false) => {
-    if (!content.trim() && !saveDraft) return
+    if (!content.trim() && !attachedImage && !saveDraft) return
 
     if (!userId) {
       toast.error('Please sign in to share a thought')
@@ -95,7 +136,7 @@ export function Composer({
       } else if (visibility === 'pseudonymous') {
         if (!pseudonym) {
           toast.error('Please set up a pseudonym in Settings before posting anonymously')
-          router.push('/app/settings/pseudonym')
+          router.push('/app/settings')
           setIsSubmitting(false)
           return
         }
@@ -134,17 +175,49 @@ export function Composer({
 
       if (!existingProfile) {
         const { data: authUser } = await supabase.auth.getUser()
-        const fallbackName = authUser?.user?.user_metadata?.display_name || authUser?.user?.email?.split('@')[0] || 'Human Member'
+        const fallbackName =
+          authUser?.user?.user_metadata?.display_name ||
+          authUser?.user?.email?.split('@')[0] ||
+          'Human Member'
         await supabase.from('profiles').upsert({
           id: userId,
           display_name: fallbackName,
         })
       }
 
+      let finalContent = content.trim()
+
+      // Handle image upload if attached
+      if (attachedImage) {
+        let finalImageUrl = attachedImage
+        if (imageFile) {
+          try {
+            const ext = imageFile.name.split('.').pop() || 'png'
+            const fileId = crypto.randomUUID()
+            const filePath = `posts/${userId}/${fileId}.${ext}`
+            const { error: uploadError } = await supabase.storage
+              .from('post-attachments')
+              .upload(filePath, imageFile, { upsert: true })
+
+            if (!uploadError) {
+              const { data: publicData } = supabase.storage
+                .from('post-attachments')
+                .getPublicUrl(filePath)
+              if (publicData?.publicUrl) {
+                finalImageUrl = publicData.publicUrl
+              }
+            }
+          } catch {
+            // Fall back to data URI
+          }
+        }
+        finalContent = `${finalContent}\n\n[image: ${finalImageUrl}]`.trim()
+      }
+
       if (saveDraft) {
         const { error } = await supabase.from('drafts').upsert({
           user_id: userId,
-          content,
+          content: finalContent,
           thread_id: threadId,
           visibility,
           circle_id: circleId,
@@ -157,7 +230,7 @@ export function Composer({
 
       const { error } = await supabase.from('posts').insert({
         author_id: userId,
-        content: content.trim(),
+        content: finalContent,
         visibility,
         thread_id: threadId,
         circle_id: circleId,
@@ -167,6 +240,7 @@ export function Composer({
       if (error) throw error
 
       setContent('')
+      handleRemoveImage()
       setSelectedCircle('')
       toast.success('Your thought has been shared!')
 
@@ -211,8 +285,30 @@ export function Composer({
             aria-label="Post content"
           />
 
+          {/* Attached Image Thumbnail */}
+          {attachedImage && (
+            <div className="relative mt-2 inline-block overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800">
+              <Image
+                src={attachedImage}
+                alt="Upload preview"
+                width={300}
+                height={200}
+                className="max-h-48 w-auto object-cover rounded-xl"
+                unoptimized
+              />
+              <button
+                type="button"
+                onClick={handleRemoveImage}
+                className="absolute top-1.5 right-1.5 p-1 rounded-full bg-gray-950/80 text-white hover:bg-gray-950 transition-colors"
+                title="Remove image"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
           {/* Quick topic pills */}
-          {!content && (
+          {!content && !attachedImage && (
             <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
               <span className="text-[11px] font-semibold text-gray-400 shrink-0 flex items-center gap-1">
                 <Sparkles className="h-3 w-3 text-amber-500" />
@@ -243,104 +339,129 @@ export function Composer({
 
       {/* Action Bar */}
       <div className="mt-4 pt-3.5 border-t border-gray-100 dark:border-gray-800 flex flex-wrap items-center justify-between gap-3">
-        {/* Visibility Selector */}
-        <div className="flex items-center gap-2">
+        {/* Left Tools (Visibility + Media + Formatting) */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Visibility Selector */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-1.5 h-8 px-2.5 text-xs font-medium bg-gray-50 hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-700"
-                disabled={isSubmitting}
+                className="h-8 gap-1.5 text-xs font-semibold rounded-xl border-gray-200 dark:border-gray-700"
               >
                 <OptionIcon className="h-3.5 w-3.5 text-primary" />
                 <span>{selectedOption.label}</span>
-                <ChevronDown className="h-3 w-3 opacity-60 ml-0.5" />
+                <ChevronDown className="h-3 w-3 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-64 p-1.5">
-              <DropdownMenuLabel className="text-xs text-gray-500 font-medium">
-                Who can see this thought?
-              </DropdownMenuLabel>
+            <DropdownMenuContent align="start" className="w-64">
+              <DropdownMenuLabel className="text-xs">Post Visibility</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {VISIBILITY_OPTIONS.map((option) => (
-                <DropdownMenuItem
-                  key={option.value}
-                  onSelect={() => setVisibility(option.value)}
-                  className={`p-2 rounded-lg cursor-pointer ${visibility === option.value ? 'bg-primary/10 text-primary' : ''}`}
-                >
-                  <div className="flex items-start gap-2.5">
-                    <option.icon className="h-4 w-4 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="font-semibold text-xs text-gray-950 dark:text-white">{option.label}</p>
-                      <p className="text-[11px] text-gray-500 dark:text-gray-400">{option.desc}</p>
+              {VISIBILITY_OPTIONS.map((opt) => {
+                const Icon = opt.icon
+                return (
+                  <DropdownMenuItem
+                    key={opt.value}
+                    onSelect={() => setVisibility(opt.value)}
+                    className="flex flex-col items-start gap-0.5 cursor-pointer py-2"
+                  >
+                    <div className="flex items-center gap-2 font-medium text-xs">
+                      <Icon className="h-3.5 w-3.5 text-primary" />
+                      {opt.label}
                     </div>
-                  </div>
-                </DropdownMenuItem>
-              ))}
+                    <span className="text-[11px] text-gray-500">{opt.desc}</span>
+                  </DropdownMenuItem>
+                )
+              })}
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Circle Picker if visibility is circle */}
+          {/* Circle Picker if Circle Visibility is chosen */}
           {visibility === 'circle' && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs font-medium border-primary/40 bg-primary/5 text-primary">
-                  {selectedCircle
-                    ? (circles.find(c => c.id === selectedCircle)?.name || 'Select Circle')
-                    : 'Choose Circle'}
-                  <ChevronDown className="h-3 w-3 ml-1" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-52">
-                <DropdownMenuLabel className="text-xs">Select a Circle</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {circles.length === 0 ? (
-                  <DropdownMenuItem disabled className="text-xs text-gray-400">
-                    No circles yet. Create one in My Circles.
-                  </DropdownMenuItem>
-                ) : (
-                  circles.map((circle) => (
-                    <DropdownMenuItem
-                      key={circle.id}
-                      onSelect={() => setSelectedCircle(circle.id)}
-                      className={selectedCircle === circle.id ? 'bg-primary/10 text-primary font-medium' : ''}
-                    >
-                      {circle.name}
-                    </DropdownMenuItem>
-                  ))
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <select
+              value={selectedCircle}
+              onChange={(e) => setSelectedCircle(e.target.value)}
+              className="h-8 rounded-xl border border-gray-200 bg-white px-2.5 text-xs font-medium text-gray-800 focus:border-primary focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+            >
+              <option value="">Choose Circle...</option>
+              {circles.map((circle) => (
+                <option key={circle.id} value={circle.id}>
+                  {circle.name}
+                </option>
+              ))}
+            </select>
           )}
+
+          {/* Media Upload Attachment */}
+          <input
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            onChange={handleImageSelect}
+            className="sr-only"
+            id="composer-image-upload"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className={`p-1.5 rounded-lg border text-xs transition-colors flex items-center gap-1 ${
+              attachedImage
+                ? 'border-primary/50 text-primary bg-primary/5'
+                : 'border-transparent text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800'
+            }`}
+            title="Attach screenshot or photo"
+          >
+            <ImageIcon className="h-4 w-4" />
+          </button>
+
+          {/* Code Formatting */}
+          <button
+            type="button"
+            onClick={handleInsertCode}
+            className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors"
+            title="Add code snippet"
+          >
+            <Code className="h-4 w-4" />
+          </button>
+
+          {/* Bold Formatting */}
+          <button
+            type="button"
+            onClick={handleInsertBold}
+            className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors"
+            title="Bold text"
+          >
+            <Bold className="h-4 w-4" />
+          </button>
         </div>
 
-        {/* Action Buttons */}
+        {/* Right Actions: Draft and Share */}
         <div className="flex items-center gap-2 ml-auto">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => handleSubmit(true)}
-            disabled={isSubmitting || !content.trim()}
-            className="h-8 text-xs text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+            disabled={isSubmitting || (!content.trim() && !attachedImage)}
+            className="h-8 text-xs text-gray-500 hover:text-gray-900 dark:hover:text-white"
           >
             <Save className="mr-1.5 h-3.5 w-3.5" />
-            Save Draft
+            Draft
           </Button>
+
           <Button
             size="sm"
             onClick={() => handleSubmit(false)}
-            disabled={isSubmitting || !content.trim()}
-            className="h-8 px-4 text-xs font-semibold gap-1.5 shadow-sm"
+            disabled={isSubmitting || (!content.trim() && !attachedImage)}
+            className="h-8 gap-1.5 text-xs font-semibold px-4 rounded-xl shadow-xs"
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Publishing...
+                Sharing...
               </>
             ) : (
               <>
-                Share Thought
+                Share Story
                 <Send className="h-3.5 w-3.5" />
               </>
             )}

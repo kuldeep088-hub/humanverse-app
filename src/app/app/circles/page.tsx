@@ -27,8 +27,12 @@ import {
   X,
   Search,
   CheckCircle2,
+  Link as LinkIcon,
+  Share2,
+  Check,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useSearchParams, useRouter } from 'next/navigation'
 
 interface Circle {
   id: string
@@ -66,6 +70,11 @@ export default function CirclesPage() {
   const [isSearchingUsers, setIsSearchingUsers] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isActionLoading, setIsActionLoading] = useState(false)
+  const [copiedCircleId, setCopiedCircleId] = useState<string | null>(null)
+
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const joinCircleId = searchParams.get('join')
 
   const { userId: currentUserId, isLoading: isUserLoading } = useCurrentUser()
   const supabase = createClient()
@@ -103,6 +112,53 @@ export default function CirclesPage() {
     setIsLoading(false)
   }, [currentUserId, supabase])
 
+  // Handle ?join= query param
+  useEffect(() => {
+    if (!joinCircleId || !currentUserId) return
+
+    const handleAutoJoin = async () => {
+      // Check if already in circle
+      const { data: existing } = await supabase
+        .from('circle_members')
+        .select('id')
+        .eq('circle_id', joinCircleId)
+        .eq('user_id', currentUserId)
+        .single()
+
+      if (existing) {
+        toast.info('You are already a member of this circle.')
+        router.replace('/app/circles')
+        return
+      }
+
+      // Check if circle exists
+      const { data: targetCircle } = await supabase
+        .from('circles')
+        .select('name')
+        .eq('id', joinCircleId)
+        .single()
+
+      if (!targetCircle) {
+        toast.error('Circle invite link is invalid or expired.')
+        router.replace('/app/circles')
+        return
+      }
+
+      const { error } = await supabase.from('circle_members').insert({
+        circle_id: joinCircleId,
+        user_id: currentUserId,
+      })
+
+      if (!error) {
+        toast.success(`You joined circle "${targetCircle.name}"!`)
+        fetchCircles()
+      }
+      router.replace('/app/circles')
+    }
+
+    handleAutoJoin()
+  }, [joinCircleId, currentUserId, supabase, router, fetchCircles])
+
   useEffect(() => {
     const run = async () => {
       await fetchCircles()
@@ -111,19 +167,23 @@ export default function CirclesPage() {
   }, [fetchCircles])
 
   const fetchMembers = async (circleId: string) => {
-    const { data } = await supabase
+    const { data: memberRows } = await supabase
       .from('circle_members')
-      .select(`
-        user:profiles!circle_members_user_id_fkey(id, display_name, professional_context, avatar_url)
-      `)
+      .select('user_id')
       .eq('circle_id', circleId)
 
-    interface MemberRow {
-      user: MemberProfile | null
+    const userIds = (memberRows || []).map((m: { user_id: string }) => m.user_id)
+    if (userIds.length === 0) {
+      setMembers([])
+      return
     }
 
-    const membersData = (data || []) as unknown as MemberRow[]
-    setMembers(membersData.map(m => m.user).filter((u): u is MemberProfile => !!u))
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, display_name, professional_context, avatar_url')
+      .in('id', userIds)
+
+    setMembers((profiles as MemberProfile[]) || [])
   }
 
   // Live search users for invitation
@@ -190,15 +250,25 @@ export default function CirclesPage() {
     }
   }
 
+  const handleCopyInviteLink = (circle: Circle) => {
+    if (typeof window !== 'undefined') {
+      const inviteUrl = `${window.location.origin}/app/circles?join=${circle.id}`
+      navigator.clipboard.writeText(inviteUrl)
+      setCopiedCircleId(circle.id)
+      toast.success(`Invite link for "${circle.name}" copied to clipboard!`)
+      setTimeout(() => setCopiedCircleId(null), 2500)
+    }
+  }
+
   const handleInviteUser = async (targetUser: MemberProfile) => {
     if (!selectedCircle) return
 
-    // Check if already in circle
     if (members.some(m => m.id === targetUser.id)) {
       toast.info(`${targetUser.display_name} is already a member`)
       return
     }
 
+    setIsActionLoading(true)
     try {
       const { error } = await supabase.from('circle_members').insert({
         circle_id: selectedCircle.id,
@@ -207,64 +277,81 @@ export default function CirclesPage() {
 
       if (error) throw error
 
-      toast.success(`Added ${targetUser.display_name} to circle!`)
+      toast.success(`${targetUser.display_name} added to ${selectedCircle.name}`)
       setUserSearchQuery('')
       setSearchResults([])
-      fetchMembers(selectedCircle.id)
+      await fetchMembers(selectedCircle.id)
       fetchCircles()
-    } catch {
-      toast.error('Could not add member')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not add member')
+    } finally {
+      setIsActionLoading(false)
     }
   }
 
-  const handleRemoveMember = async (circleId: string, memberId: string, name: string) => {
+  const handleRemoveMember = async (memberUserId: string, memberName: string) => {
+    if (!selectedCircle) return
+    if (!confirm(`Remove ${memberName} from this circle?`)) return
+
+    setIsActionLoading(true)
     try {
       const { error } = await supabase
         .from('circle_members')
         .delete()
-        .eq('circle_id', circleId)
-        .eq('user_id', memberId)
+        .match({ circle_id: selectedCircle.id, user_id: memberUserId })
 
       if (error) throw error
 
-      toast.success(`Removed ${name}`)
-      fetchMembers(circleId)
+      toast.success(`${memberName} removed`)
+      await fetchMembers(selectedCircle.id)
       fetchCircles()
-    } catch {
-      toast.error('Could not remove member')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not remove member')
+    } finally {
+      setIsActionLoading(false)
     }
   }
 
-  const handleLeaveCircle = async (circleId: string) => {
-    if (!confirm('Leave this circle?')) return
+  const handleLeaveCircle = async (circleId: string, circleName: string) => {
+    if (!currentUserId) return
+    if (!confirm(`Are you sure you want to leave "${circleName}"?`)) return
+
+    setIsActionLoading(true)
     try {
       const { error } = await supabase
         .from('circle_members')
         .delete()
-        .eq('circle_id', circleId)
-        .eq('user_id', currentUserId)
+        .match({ circle_id: circleId, user_id: currentUserId })
 
       if (error) throw error
 
-      toast.success('Left circle')
-      setShowMembers(false)
+      toast.success(`Left circle "${circleName}"`)
       fetchCircles()
-    } catch {
-      toast.error('Could not leave circle')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not leave circle')
+    } finally {
+      setIsActionLoading(false)
     }
   }
 
-  const handleDeleteCircle = async (circleId: string) => {
-    if (!confirm('Are you sure you want to delete this circle? Posts in this circle will also be removed.')) return
+  const handleDeleteCircle = async (circleId: string, circleName: string) => {
+    if (!confirm(`Permanently delete circle "${circleName}"? All private posts inside will be removed.`)) return
+
+    setIsActionLoading(true)
     try {
       const { error } = await supabase.from('circles').delete().eq('id', circleId)
       if (error) throw error
 
-      toast.success('Circle deleted')
-      setShowMembers(false)
+      toast.success(`Circle "${circleName}" deleted`)
+      if (selectedCircle?.id === circleId) {
+        setShowMembers(false)
+        setSelectedCircle(null)
+      }
       fetchCircles()
-    } catch {
-      toast.error('Could not delete circle')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not delete circle')
+    } finally {
+      setIsActionLoading(false)
     }
   }
 
@@ -283,33 +370,36 @@ export default function CirclesPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* Header Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-200 dark:border-gray-800">
         <div>
           <h1 className="text-2xl font-bold text-gray-950 dark:text-white flex items-center gap-2">
             <Users className="h-6 w-6 text-primary" />
-            My Circles
+            Private Circles
           </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Private trust-based spaces to share candid posts exclusively with chosen peers.
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-lg">
+            Small, trusted spaces for honest peer conversations. Circle posts are strictly private to members and never indexed publicly.
           </p>
         </div>
 
-        <Button onClick={() => setShowCreate(true)} className="gap-1.5 self-start sm:self-center shadow-sm">
+        <Button
+          onClick={() => setShowCreate(true)}
+          className="gap-1.5 shrink-0 rounded-xl shadow-xs"
+        >
           <Plus className="h-4 w-4" />
           Create Circle
         </Button>
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-2 border-b border-gray-200 dark:border-gray-800 pb-2">
+      <div className="flex items-center gap-2">
         <button
           onClick={() => setActiveFilter('all')}
           className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
             activeFilter === 'all'
               ? 'bg-primary/10 text-primary'
-              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400'
           }`}
         >
           All Circles ({circles.length})
@@ -319,173 +409,63 @@ export default function CirclesPage() {
           className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
             activeFilter === 'owner'
               ? 'bg-primary/10 text-primary'
-              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400'
           }`}
         >
-          Created by Me ({circles.filter(c => c.owner_id === currentUserId).length})
+          Created by You ({circles.filter(c => c.owner_id === currentUserId).length})
         </button>
         <button
           onClick={() => setActiveFilter('joined')}
           className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
             activeFilter === 'joined'
               ? 'bg-primary/10 text-primary'
-              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+              : 'text-gray-500 hover:text-gray-900 dark:text-gray-400'
           }`}
         >
-          Joined Circles ({circles.filter(c => c.owner_id !== currentUserId).length})
+          Member Of ({circles.filter(c => c.owner_id !== currentUserId).length})
         </button>
       </div>
 
-      {/* Circles List */}
-      {filteredCircles.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-gray-200 p-12 text-center text-gray-500 dark:border-gray-800 dark:text-gray-400">
-          <Users className="mx-auto h-12 w-12 text-gray-300 dark:text-gray-600 mb-3" />
-          <p className="text-lg font-medium text-gray-900 dark:text-white">No circles found</p>
-          <p className="mt-1 text-sm max-w-md mx-auto">
-            Circles let you post things you only want specific co-workers, mentors, or trusted friends to read.
-          </p>
-          <Button onClick={() => setShowCreate(true)} className="mt-4 gap-1.5">
-            <Plus className="h-4 w-4" />
-            Create Your First Circle
-          </Button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {filteredCircles.map(circle => {
-            const isOwner = circle.owner_id === currentUserId
-            return (
-              <div
-                key={circle.id}
-                className="flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold">
-                        <Lock className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h2 className="font-bold text-base text-gray-950 dark:text-white">
-                          {circle.name}
-                        </h2>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full ${
-                            isOwner
-                              ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300'
-                              : 'bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300'
-                          }`}>
-                            {isOwner ? 'Owner' : 'Member'}
-                          </span>
-                          <span className="text-xs text-gray-400">·</span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                            {circle.member_count || 1} {(circle.member_count || 1) === 1 ? 'member' : 'members'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-600">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuLabel>{circle.name}</DropdownMenuLabel>
-                        <DropdownMenuItem onSelect={() => {
-                          setSelectedCircle(circle)
-                          setShowMembers(true)
-                          fetchMembers(circle.id)
-                        }}>
-                          <Users className="mr-2 h-4 w-4" />
-                          Manage Members
-                        </DropdownMenuItem>
-                        {isOwner ? (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onSelect={() => handleDeleteCircle(circle.id)} className="text-red-600">
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete Circle
-                            </DropdownMenuItem>
-                          </>
-                        ) : (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onSelect={() => handleLeaveCircle(circle.id)} className="text-red-600">
-                              <UserMinus className="mr-2 h-4 w-4" />
-                              Leave Circle
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-
-                <div className="mt-5 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full text-xs font-medium gap-1.5"
-                    onClick={() => {
-                      setSelectedCircle(circle)
-                      setShowMembers(true)
-                      fetchMembers(circle.id)
-                    }}
-                  >
-                    <UserPlus className="h-3.5 w-3.5 text-primary" />
-                    Members & Invites
-                  </Button>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Create Circle Modal */}
+      {/* Create Modal */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-800 dark:bg-gray-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-800 dark:bg-gray-900">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
-              <h2 className="text-lg font-semibold text-gray-950 dark:text-white flex items-center gap-2">
-                <Users className="h-5 w-5 text-primary" />
-                Create a Private Circle
+              <h2 className="text-base font-bold text-gray-950 dark:text-white flex items-center gap-2">
+                <Lock className="h-4 w-4 text-primary" />
+                New Private Circle
               </h2>
               <button
-                type="button"
                 onClick={() => setShowCreate(false)}
-                className="rounded-lg p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
             <form onSubmit={handleCreateCircle} className="mt-4 space-y-4">
               <div>
-                <Label htmlFor="circleName" className="text-xs font-medium uppercase tracking-wider text-gray-600 dark:text-gray-400">
+                <Label htmlFor="circleName" className="text-xs font-medium text-gray-700 dark:text-gray-300">
                   Circle Name
                 </Label>
                 <Input
                   id="circleName"
                   value={newCircleName}
                   onChange={(e) => setNewCircleName(e.target.value)}
-                  placeholder="e.g. Design Leadership, Ex-Founders, Close Team"
-                  className="mt-1"
+                  placeholder="e.g. YC Founders, Design Leads, Stealth Club"
                   required
                   autoFocus
+                  className="mt-1"
                 />
-                <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
-                  Posts shared to this circle will only ever be visible to its members.
-                </p>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-gray-100 dark:border-gray-800">
-                <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>
+              <div className="flex gap-2 justify-end pt-2">
+                <Button type="button" variant="ghost" onClick={() => setShowCreate(false)}>
                   Cancel
                 </Button>
                 <Button type="submit" disabled={isActionLoading || !newCircleName.trim()}>
-                  {isActionLoading ? 'Creating...' : 'Create Circle'}
+                  {isActionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+                  Create Circle
                 </Button>
               </div>
             </form>
@@ -493,167 +473,291 @@ export default function CirclesPage() {
         </div>
       )}
 
-      {/* Members & Invite Management Modal */}
+      {/* Members Management Drawer Modal */}
       {showMembers && selectedCircle && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-800 dark:bg-gray-900 max-h-[85vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-800 dark:bg-gray-900 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
               <div>
-                <h2 className="text-lg font-semibold text-gray-950 dark:text-white">
+                <h2 className="text-base font-bold text-gray-950 dark:text-white flex items-center gap-2">
+                  <Users className="h-4 w-4 text-primary" />
                   {selectedCircle.name}
                 </h2>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Manage circle members & invite trusted peers
-                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">{members.length} active members</p>
               </div>
               <button
-                type="button"
                 onClick={() => {
                   setShowMembers(false)
+                  setSelectedCircle(null)
                   setUserSearchQuery('')
                   setSearchResults([])
                 }}
-                className="rounded-lg p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
-            {/* Invite Peer Search */}
-            <div className="mt-4 space-y-2">
-              <Label htmlFor="searchUsers" className="text-xs font-medium uppercase tracking-wider text-gray-600 dark:text-gray-400">
-                Invite Member by Name
-              </Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  id="searchUsers"
-                  value={userSearchQuery}
-                  onChange={(e) => {
-                    setUserSearchQuery(e.target.value)
-                    if (!e.target.value.trim()) setSearchResults([])
-                  }}
-                  placeholder="Search user by display name..."
-                  className="pl-9"
-                />
-                {isSearchingUsers && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
-                )}
+            {/* Copy Invite Link in Drawer */}
+            <div className="mt-4 p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-gray-900 dark:text-white">Shareable Circle Invite</p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 truncate">Anyone with this link can join this circle</p>
               </div>
-
-              {/* Search Suggestions */}
-              {searchResults.length > 0 && (
-                <div className="rounded-xl border border-gray-200 bg-gray-50 p-2 dark:border-gray-800 dark:bg-gray-800/60 space-y-1">
-                  {searchResults.map(user => {
-                    const isAlreadyMember = members.some(m => m.id === user.id)
-                    return (
-                      <div
-                        key={user.id}
-                        className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Avatar src={user.avatar_url || undefined} fallbackName={user.display_name} className="h-8 w-8" />
-                          <div>
-                            <p className="text-xs font-semibold text-gray-950 dark:text-white">{user.display_name}</p>
-                            {user.professional_context && (
-                              <p className="text-[11px] text-gray-500 dark:text-gray-400">{user.professional_context}</p>
-                            )}
-                          </div>
-                        </div>
-
-                        {isAlreadyMember ? (
-                          <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            Member
-                          </span>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="default"
-                            onClick={() => handleInviteUser(user)}
-                            className="h-7 px-2.5 text-xs gap-1"
-                          >
-                            <UserPlus className="h-3 w-3" />
-                            Add
-                          </Button>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Current Members List */}
-            <div className="mt-6 space-y-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                Current Members ({members.length})
-              </h3>
-              <div className="space-y-2 max-h-56 overflow-y-auto">
-                {members.map(member => {
-                  const isMemberOwner = selectedCircle.owner_id === member.id
-                  const canRemove = selectedCircle.owner_id === currentUserId && member.id !== currentUserId
-
-                  return (
-                    <div
-                      key={member.id}
-                      className="flex items-center justify-between p-2.5 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Avatar
-                          src={member.avatar_url || undefined}
-                          fallbackName={member.display_name}
-                          className="h-9 w-9"
-                        />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-gray-950 dark:text-white">
-                              {member.display_name}
-                            </span>
-                            {isMemberOwner && (
-                              <span className="text-[10px] bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 px-1.5 py-0.2 rounded font-medium">
-                                Owner
-                              </span>
-                            )}
-                          </div>
-                          {member.professional_context && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {member.professional_context}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      {canRemove && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveMember(selectedCircle.id, member.id, member.display_name)}
-                          className="text-red-500 hover:text-red-700 h-8 px-2"
-                          title="Remove from circle"
-                        >
-                          <UserMinus className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="mt-6 pt-3 border-t border-gray-100 dark:border-gray-800 flex justify-end">
               <Button
+                size="sm"
                 variant="outline"
-                onClick={() => {
-                  setShowMembers(false)
-                  setUserSearchQuery('')
-                  setSearchResults([])
-                }}
+                onClick={() => handleCopyInviteLink(selectedCircle)}
+                className="gap-1.5 text-xs shrink-0"
               >
-                Done
+                {copiedCircleId === selectedCircle.id ? (
+                  <>
+                    <Check className="h-3.5 w-3.5 text-emerald-500" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <LinkIcon className="h-3.5 w-3.5" />
+                    Copy Link
+                  </>
+                )}
               </Button>
             </div>
+
+            {/* Invite New User Search Box */}
+            {selectedCircle.owner_id === currentUserId && (
+              <div className="mt-4 space-y-2">
+                <Label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  Invite Member by Name
+                </Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                  <Input
+                    value={userSearchQuery}
+                    onChange={(e) => setUserSearchQuery(e.target.value)}
+                    placeholder="Search name to invite..."
+                    className="pl-9 h-9 text-xs"
+                  />
+                  {isSearchingUsers && (
+                    <Loader2 className="absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-gray-400" />
+                  )}
+                </div>
+
+                {/* User Search Results */}
+                {searchResults.length > 0 && (
+                  <div className="p-2 rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/60 space-y-1">
+                    {searchResults.map(user => {
+                      const isAlreadyMember = members.some(m => m.id === user.id)
+                      return (
+                        <div key={user.id} className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <Avatar src={user.avatar_url || undefined} fallbackName={user.display_name} className="h-7 w-7" />
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-gray-950 dark:text-white truncate">{user.display_name}</p>
+                              {user.professional_context && (
+                                <p className="text-[10px] text-gray-400 truncate">{user.professional_context}</p>
+                              )}
+                            </div>
+                          </div>
+
+                          {isAlreadyMember ? (
+                            <span className="text-[11px] text-gray-400 font-medium flex items-center gap-1">
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                              Member
+                            </span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => handleInviteUser(user)}
+                              disabled={isActionLoading}
+                              className="h-6 text-[11px] px-2.5 gap-1"
+                            >
+                              <UserPlus className="h-3 w-3" />
+                              Add
+                            </Button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Members List */}
+            <div className="mt-5 space-y-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                Current Members ({members.length})
+              </span>
+              <div className="divide-y divide-gray-100 dark:divide-gray-800 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+                {members.map(member => (
+                  <div key={member.id} className="flex items-center justify-between p-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Avatar src={member.avatar_url || undefined} fallbackName={member.display_name} className="h-8 w-8" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-950 dark:text-white truncate">
+                          {member.display_name}
+                          {member.id === selectedCircle.owner_id && (
+                            <span className="ml-1.5 text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.2 rounded">
+                              Owner
+                            </span>
+                          )}
+                        </p>
+                        {member.professional_context && (
+                          <p className="text-[10px] text-gray-400 truncate">{member.professional_context}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {selectedCircle.owner_id === currentUserId && member.id !== currentUserId && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveMember(member.id, member.display_name)}
+                        className="h-7 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40"
+                      >
+                        <UserMinus className="h-3.5 w-3.5 mr-1" />
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
+        </div>
+      )}
+
+      {/* Circles Grid */}
+      {filteredCircles.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-gray-200 p-12 text-center text-gray-500 dark:border-gray-800 dark:text-gray-400">
+          <Users className="mx-auto h-10 w-10 text-gray-300 dark:text-gray-600 mb-2" />
+          <p className="text-base font-semibold text-gray-900 dark:text-white">
+            {activeFilter === 'owner' ? 'You haven’t created any circles yet' : 'No circles found'}
+          </p>
+          <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
+            Circles are invite-only trusted groups where discussions are kept 100% private.
+          </p>
+          <Button onClick={() => setShowCreate(true)} className="mt-4">
+            Create Your First Circle
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {filteredCircles.map(circle => {
+            const isOwner = circle.owner_id === currentUserId
+            const isCopied = copiedCircleId === circle.id
+
+            return (
+              <div
+                key={circle.id}
+                className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900 transition-all hover:border-gray-300 dark:hover:border-gray-700 flex flex-col justify-between gap-4"
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-300 font-bold">
+                        <Lock className="h-4 w-4" />
+                      </span>
+                      <div>
+                        <h2 className="font-bold text-sm text-gray-950 dark:text-white">{circle.name}</h2>
+                        <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                          {circle.member_count} {circle.member_count === 1 ? 'member' : 'members'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      {isOwner && (
+                        <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                          Owner
+                        </span>
+                      )}
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                          <DropdownMenuLabel className="text-xs">Circle Options</DropdownMenuLabel>
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              setSelectedCircle(circle)
+                              setShowMembers(true)
+                              fetchMembers(circle.id)
+                            }}
+                          >
+                            <Users className="mr-2 h-3.5 w-3.5" />
+                            Manage Members
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => handleCopyInviteLink(circle)}>
+                            <Share2 className="mr-2 h-3.5 w-3.5" />
+                            Copy Invite Link
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {isOwner ? (
+                            <DropdownMenuItem
+                              onSelect={() => handleDeleteCircle(circle.id, circle.name)}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="mr-2 h-3.5 w-3.5" />
+                              Delete Circle
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem
+                              onSelect={() => handleLeaveCircle(circle.id, circle.name)}
+                              className="text-red-600"
+                            >
+                              <UserMinus className="mr-2 h-3.5 w-3.5" />
+                              Leave Circle
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Controls on Card */}
+                <div className="pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedCircle(circle)
+                      setShowMembers(true)
+                      fetchMembers(circle.id)
+                    }}
+                    className="text-xs h-7 gap-1"
+                  >
+                    <Users className="h-3 w-3" />
+                    Members
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCopyInviteLink(circle)}
+                    className="text-xs h-7 gap-1 text-gray-500 hover:text-primary"
+                  >
+                    {isCopied ? (
+                      <>
+                        <Check className="h-3 w-3 text-emerald-500" />
+                        Link Copied
+                      </>
+                    ) : (
+                      <>
+                        <Share2 className="h-3 w-3" />
+                        Share Invite
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
