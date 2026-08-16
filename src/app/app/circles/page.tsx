@@ -6,6 +6,7 @@ import { useCurrentUser } from '@/lib/use-current-user'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -30,6 +31,9 @@ import {
   Link as LinkIcon,
   Share2,
   Check,
+  Key,
+  Megaphone,
+  Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useSearchParams, useRouter } from 'next/navigation'
@@ -38,6 +42,8 @@ interface Circle {
   id: string
   name: string
   owner_id: string
+  passcode?: string | null
+  announcement?: string | null
   created_at: string
   member_count?: number
 }
@@ -46,6 +52,8 @@ interface CircleRow {
   id: string
   name: string
   owner_id: string
+  passcode?: string | null
+  announcement?: string | null
   created_at: string
   members: { count: number }[]
 }
@@ -62,9 +70,20 @@ export default function CirclesPage() {
   const [activeFilter, setActiveFilter] = useState<'all' | 'owner' | 'joined'>('all')
   const [showCreate, setShowCreate] = useState(false)
   const [newCircleName, setNewCircleName] = useState('')
+  const [newCirclePasscode, setNewCirclePasscode] = useState('')
+  const [newCircleAnnouncement, setNewCircleAnnouncement] = useState('')
+
+  const [showJoinPasscodeModal, setShowJoinPasscodeModal] = useState(false)
+  const [joinCirclePasscode, setJoinCirclePasscode] = useState('')
+  const [joinCircleTargetName, setJoinCircleTargetName] = useState('')
+
   const [selectedCircle, setSelectedCircle] = useState<Circle | null>(null)
   const [members, setMembers] = useState<MemberProfile[]>([])
   const [showMembers, setShowMembers] = useState(false)
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
+  const [editAnnouncement, setEditAnnouncement] = useState('')
+  const [editPasscode, setEditPasscode] = useState('')
+
   const [userSearchQuery, setUserSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<MemberProfile[]>([])
   const [isSearchingUsers, setIsSearchingUsers] = useState(false)
@@ -117,7 +136,6 @@ export default function CirclesPage() {
     if (!joinCircleId || !currentUserId) return
 
     const handleAutoJoin = async () => {
-      // Check if already in circle
       const { data: existing } = await supabase
         .from('circle_members')
         .select('id')
@@ -131,16 +149,22 @@ export default function CirclesPage() {
         return
       }
 
-      // Check if circle exists
       const { data: targetCircle } = await supabase
         .from('circles')
-        .select('name')
+        .select('name, passcode')
         .eq('id', joinCircleId)
         .single()
 
       if (!targetCircle) {
         toast.error('Circle invite link is invalid or expired.')
         router.replace('/app/circles')
+        return
+      }
+
+      // If circle has passcode, prompt user
+      if (targetCircle.passcode) {
+        setJoinCircleTargetName(targetCircle.name)
+        setShowJoinPasscodeModal(true)
         return
       }
 
@@ -186,7 +210,7 @@ export default function CirclesPage() {
     setMembers((profiles as MemberProfile[]) || [])
   }
 
-  // Live search users for invitation
+  // Live user search for invitation
   useEffect(() => {
     const query = userSearchQuery.trim()
     if (!query) return
@@ -219,19 +243,19 @@ export default function CirclesPage() {
 
     setIsActionLoading(true)
     try {
-      // 1. Insert circle
       const { data: newCircle, error: circleError } = await supabase
         .from('circles')
         .insert({
           name: newCircleName.trim(),
           owner_id: currentUserId,
+          passcode: newCirclePasscode.trim() || null,
+          announcement: newCircleAnnouncement.trim() || null,
         })
         .select()
         .single()
 
       if (circleError) throw circleError
 
-      // 2. Automatically add owner to circle_members
       if (newCircle) {
         await supabase.from('circle_members').insert({
           circle_id: newCircle.id,
@@ -241,10 +265,92 @@ export default function CirclesPage() {
 
       toast.success(`Circle "${newCircleName.trim()}" created!`)
       setNewCircleName('')
+      setNewCirclePasscode('')
+      setNewCircleAnnouncement('')
       setShowCreate(false)
       fetchCircles()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not create circle')
+    } finally {
+      setIsActionLoading(false)
+    }
+  }
+
+  const handleJoinWithPasscode = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!currentUserId || !joinCirclePasscode.trim()) return
+
+    setIsActionLoading(true)
+    try {
+      // Find circle with this passcode
+      const { data: matchedCircles, error: findError } = await supabase
+        .from('circles')
+        .select('id, name, passcode')
+        .eq('passcode', joinCirclePasscode.trim())
+
+      if (findError || !matchedCircles || matchedCircles.length === 0) {
+        toast.error('No private circle found with this passcode.')
+        setIsActionLoading(false)
+        return
+      }
+
+      const targetCircle = matchedCircles[0]
+
+      // Check if already member
+      const { data: existing } = await supabase
+        .from('circle_members')
+        .select('id')
+        .eq('circle_id', targetCircle.id)
+        .eq('user_id', currentUserId)
+        .single()
+
+      if (existing) {
+        toast.info(`You are already a member of "${targetCircle.name}".`)
+        setShowJoinPasscodeModal(false)
+        setJoinCirclePasscode('')
+        return
+      }
+
+      const { error: joinError } = await supabase.from('circle_members').insert({
+        circle_id: targetCircle.id,
+        user_id: currentUserId,
+      })
+
+      if (joinError) throw joinError
+
+      toast.success(`Unlocked & joined "${targetCircle.name}"!`)
+      setShowJoinPasscodeModal(false)
+      setJoinCirclePasscode('')
+      fetchCircles()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not join circle')
+    } finally {
+      setIsActionLoading(false)
+    }
+  }
+
+  const handleSaveCircleSettings = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedCircle || !currentUserId) return
+
+    setIsActionLoading(true)
+    try {
+      const { error } = await supabase
+        .from('circles')
+        .update({
+          announcement: editAnnouncement.trim() || null,
+          passcode: editPasscode.trim() || null,
+        })
+        .eq('id', selectedCircle.id)
+        .eq('owner_id', currentUserId)
+
+      if (error) throw error
+
+      toast.success('Circle settings and announcement updated!')
+      setShowSettingsModal(false)
+      fetchCircles()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not update circle')
     } finally {
       setIsActionLoading(false)
     }
@@ -383,13 +489,24 @@ export default function CirclesPage() {
           </p>
         </div>
 
-        <Button
-          onClick={() => setShowCreate(true)}
-          className="gap-1.5 shrink-0 rounded-xl shadow-xs"
-        >
-          <Plus className="h-4 w-4" />
-          Create Circle
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowJoinPasscodeModal(true)}
+            className="gap-1.5 shrink-0 rounded-xl text-xs"
+          >
+            <Key className="h-4 w-4 text-purple-600" />
+            Enter Passcode
+          </Button>
+
+          <Button
+            onClick={() => setShowCreate(true)}
+            className="gap-1.5 shrink-0 rounded-xl shadow-xs text-xs"
+          >
+            <Plus className="h-4 w-4" />
+            Create Circle
+          </Button>
+        </div>
       </div>
 
       {/* Filter Tabs */}
@@ -428,7 +545,7 @@ export default function CirclesPage() {
 
       {/* Create Modal */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in">
           <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-800 dark:bg-gray-900">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
               <h2 className="text-base font-bold text-gray-950 dark:text-white flex items-center gap-2">
@@ -452,10 +569,41 @@ export default function CirclesPage() {
                   id="circleName"
                   value={newCircleName}
                   onChange={(e) => setNewCircleName(e.target.value)}
-                  placeholder="e.g. YC Founders, Design Leads, Stealth Club"
+                  placeholder="e.g. YC Founders, Staff Engineers, Stealth Club"
                   required
                   autoFocus
-                  className="mt-1"
+                  className="mt-1 text-xs"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="circlePasscode" className="text-xs font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                  <Key className="h-3.5 w-3.5 text-purple-600" />
+                  Passcode Access <span className="text-gray-400 font-normal">(optional)</span>
+                </Label>
+                <Input
+                  id="circlePasscode"
+                  value={newCirclePasscode}
+                  onChange={(e) => setNewCirclePasscode(e.target.value)}
+                  placeholder="e.g. stealth-2026 or founders-alpha"
+                  className="mt-1 text-xs"
+                />
+                <p className="mt-1 text-[11px] text-gray-400">
+                  Peers with this code can instantly join this circle without an invite link.
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="circleAnnouncement" className="text-xs font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                  <Megaphone className="h-3.5 w-3.5 text-amber-500" />
+                  Pinned Announcement <span className="text-gray-400 font-normal">(optional)</span>
+                </Label>
+                <Textarea
+                  id="circleAnnouncement"
+                  value={newCircleAnnouncement}
+                  onChange={(e) => setNewCircleAnnouncement(e.target.value)}
+                  placeholder="e.g. Welcome! Ground rules: 100% confidential, real metrics only."
+                  className="mt-1 min-h-[60px] text-xs resize-none"
                 />
               </div>
 
@@ -473,9 +621,119 @@ export default function CirclesPage() {
         </div>
       )}
 
+      {/* Join with Passcode Modal */}
+      {showJoinPasscodeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-800 dark:bg-gray-900">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
+              <h2 className="text-base font-bold text-gray-950 dark:text-white flex items-center gap-2">
+                <Key className="h-4 w-4 text-purple-600" />
+                Join with Circle Passcode
+              </h2>
+              <button
+                onClick={() => {
+                  setShowJoinPasscodeModal(false)
+                  setJoinCirclePasscode('')
+                }}
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleJoinWithPasscode} className="mt-4 space-y-4">
+              <div>
+                <Label htmlFor="passcode-input" className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  {joinCircleTargetName ? `Passcode for "${joinCircleTargetName}"` : 'Circle Passcode'}
+                </Label>
+                <Input
+                  id="passcode-input"
+                  value={joinCirclePasscode}
+                  onChange={(e) => setJoinCirclePasscode(e.target.value)}
+                  placeholder="Enter circle passcode..."
+                  className="mt-1 text-xs"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end pt-2">
+                <Button type="button" variant="ghost" onClick={() => setShowJoinPasscodeModal(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isActionLoading || !joinCirclePasscode.trim()}>
+                  {isActionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                  Unlock & Join
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Circle Settings & Announcement Modal (Owner only) */}
+      {showSettingsModal && selectedCircle && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-800 dark:bg-gray-900">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
+              <h2 className="text-base font-bold text-gray-950 dark:text-white flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Manage {selectedCircle.name}
+              </h2>
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCircleSettings} className="mt-4 space-y-4">
+              <div>
+                <Label htmlFor="edit-passcode" className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                  <Key className="h-3.5 w-3.5 text-purple-600" />
+                  Circle Passcode
+                </Label>
+                <Input
+                  id="edit-passcode"
+                  value={editPasscode}
+                  onChange={(e) => setEditPasscode(e.target.value)}
+                  placeholder="Set or update passcode..."
+                  className="mt-1 text-xs"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="edit-announcement" className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                  <Megaphone className="h-3.5 w-3.5 text-amber-500" />
+                  Pinned Announcement
+                </Label>
+                <Textarea
+                  id="edit-announcement"
+                  value={editAnnouncement}
+                  onChange={(e) => setEditAnnouncement(e.target.value)}
+                  placeholder="Pinned message displayed at the top of this circle..."
+                  className="mt-1 min-h-[80px] text-xs resize-none"
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end pt-2">
+                <Button type="button" variant="ghost" onClick={() => setShowSettingsModal(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isActionLoading}>
+                  {isActionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                  Save Settings
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Members Management Drawer Modal */}
       {showMembers && selectedCircle && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in">
           <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-800 dark:bg-gray-900 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-800">
               <div>
@@ -497,6 +755,17 @@ export default function CirclesPage() {
                 <X className="h-4 w-4" />
               </button>
             </div>
+
+            {/* Pinned Announcement in Drawer if set */}
+            {selectedCircle.announcement && (
+              <div className="mt-4 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-xs text-amber-950 dark:text-amber-200 space-y-1">
+                <span className="font-bold flex items-center gap-1 text-amber-700 dark:text-amber-400 uppercase tracking-wider text-[10px]">
+                  <Megaphone className="h-3.5 w-3.5" />
+                  Pinned Circle Announcement
+                </span>
+                <p className="leading-relaxed">{selectedCircle.announcement}</p>
+              </div>
+            )}
 
             {/* Copy Invite Link in Drawer */}
             <div className="mt-4 p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center justify-between gap-2">
@@ -661,9 +930,17 @@ export default function CirclesPage() {
                       </span>
                       <div>
                         <h2 className="font-bold text-sm text-gray-950 dark:text-white">{circle.name}</h2>
-                        <span className="text-[11px] text-gray-500 dark:text-gray-400">
-                          {circle.member_count} {circle.member_count === 1 ? 'member' : 'members'}
-                        </span>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                            {circle.member_count} {circle.member_count === 1 ? 'member' : 'members'}
+                          </span>
+                          {circle.passcode && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 px-1.5 py-0.2 rounded border border-purple-200 dark:border-purple-900">
+                              <Key className="h-2.5 w-2.5" />
+                              Passcode
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -680,7 +957,7 @@ export default function CirclesPage() {
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuLabel className="text-xs">Circle Options</DropdownMenuLabel>
                           <DropdownMenuItem
                             onSelect={() => {
@@ -692,6 +969,19 @@ export default function CirclesPage() {
                             <Users className="mr-2 h-3.5 w-3.5" />
                             Manage Members
                           </DropdownMenuItem>
+                          {isOwner && (
+                            <DropdownMenuItem
+                              onSelect={() => {
+                                setSelectedCircle(circle)
+                                setEditAnnouncement(circle.announcement || '')
+                                setEditPasscode(circle.passcode || '')
+                                setShowSettingsModal(true)
+                              }}
+                            >
+                              <Sparkles className="mr-2 h-3.5 w-3.5 text-primary" />
+                              Announcement & Passcode
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem onSelect={() => handleCopyInviteLink(circle)}>
                             <Share2 className="mr-2 h-3.5 w-3.5" />
                             Copy Invite Link
@@ -718,6 +1008,13 @@ export default function CirclesPage() {
                       </DropdownMenu>
                     </div>
                   </div>
+
+                  {circle.announcement && (
+                    <div className="mt-3 p-2.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/60 text-xs text-amber-900 dark:text-amber-300 line-clamp-2">
+                      <span className="font-semibold mr-1">📌 Announcement:</span>
+                      {circle.announcement}
+                    </div>
+                  )}
                 </div>
 
                 {/* Footer Controls on Card */}

@@ -50,6 +50,8 @@ export interface Circle {
   id: string
   name: string
   owner_id: string
+  passcode?: string | null
+  announcement?: string | null
   created_at: string
   updated_at: string
 }
@@ -58,6 +60,8 @@ export interface CircleMinimal {
   id: string
   name: string
   owner_id?: string
+  passcode?: string | null
+  announcement?: string | null
   created_at?: string
   updated_at?: string
 }
@@ -160,4 +164,46 @@ export interface Draft {
   pseudonym_id: string | null
   created_at: string
   updated_at: string
+}
+
+export interface ConversationParticipant {
+  id: string
+  conversation_id: string
+  user_id: string
+  pseudonym_id: string | null
+  last_read_at: string | null
+  profile?: ProfileMinimal | null
+  pseudonym?: Pseudonym | null
+}
+
+export interface DirectMessage {
+  id: string
+  conversation_id: string
+  sender_id: string
+  pseudonym_id: string | null
+  content: string
+  created_at: string
+  sender?: ProfileMinimal | null
+  pseudonym?: Pseudonym | null
+}
+
+export interface Conversation {
+  id: string
+  created_at: string
+  updated_at: string
+  participants: ConversationParticipant[]
+  last_message?: DirectMessage | null
+  unread_count?: number
+}
+
+export interface CareerMilestone {
+  id: string
+  user_id: string
+  year_or_period: string
+  title: string
+  role_or_venture: string
+  type: 'pivot' | 'win' | 'failure' | 'lesson' | 'role'
+  story: string
+  key_lesson?: string | null
+  created_at: string
 }

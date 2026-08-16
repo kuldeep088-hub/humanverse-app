@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { LogOut, Settings, Bell, Search, User, Hash, Users, Shield } from 'lucide-react'
+import { LogOut, Settings, Bell, Search, User, Hash, Users, Shield, MessageSquare, BookOpen } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { AppNav } from '@/components/app/nav'
 import { createClient } from '@/lib/supabase/server'
@@ -119,6 +119,15 @@ export default async function AppLayout({ children }: AppLayoutProps) {
               <Search className="h-5 w-5" />
             </Link>
 
+            {/* Direct Messages Icon Button */}
+            <Link
+              href="/app/messages"
+              className="relative p-2 text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-white"
+              aria-label="Messages"
+            >
+              <MessageSquare className="h-5 w-5" />
+            </Link>
+
             <Link
               href="/app/notifications"
               className="relative p-2 text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-white"
@@ -159,6 +168,24 @@ export default async function AppLayout({ children }: AppLayoutProps) {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
+                  <Link href="/app/messages" className="flex w-full items-center gap-2">
+                    <MessageSquare className="h-4 w-4" />
+                    Messages
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/app/journal" className="flex w-full items-center gap-2">
+                    <BookOpen className="h-4 w-4" />
+                    Career Journal
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/app/circles" className="flex w-full items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Circles
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
                   <Link href="/app/settings" className="flex w-full items-center gap-2">
                     <Settings className="h-4 w-4" />
                     Settings
@@ -172,12 +199,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
                     </Link>
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem asChild>
-                  <Link href="/app/circles" className="flex w-full items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    Circles
-                  </Link>
-                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
                   <Link href="/privacy" className="flex w-full items-center gap-2">

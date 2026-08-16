@@ -9,6 +9,7 @@ import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Post } from '@/types'
 import { EditProfileModal } from '@/components/app/edit-profile-modal'
+import { CareerTimeline } from '@/components/app/career-timeline'
 import {
   Briefcase,
   Loader2,
@@ -18,8 +19,10 @@ import {
   Pencil,
   FileText,
   ShieldCheck,
+  MessageSquare,
+  GitCommit,
 } from 'lucide-react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
 
@@ -34,14 +37,16 @@ interface Profile {
 export default function ProfilePage() {
   const params = useParams<{ id: string }>()
   const id = params.id
+  const router = useRouter()
 
   const { userId: currentUserId, isLoading: isUserLoading } = useCurrentUser()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [posts, setPosts] = useState<Post[]>([])
-  const [activeTab, setActiveTab] = useState<'posts' | 'replies'>('posts')
+  const [activeTab, setActiveTab] = useState<'posts' | 'timeline'>('posts')
   const [isLoading, setIsLoading] = useState(true)
   const [isNotFound, setIsNotFound] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isStartingChat, setIsStartingChat] = useState(false)
 
   const isOwnProfile = id === 'me' || id === currentUserId
   const targetUserId = isOwnProfile ? currentUserId : id
@@ -91,6 +96,56 @@ export default function ProfilePage() {
     if (typeof window !== 'undefined') {
       navigator.clipboard.writeText(window.location.href)
       toast.success('Profile link copied to clipboard!')
+    }
+  }
+
+  const handleMessageUser = async () => {
+    if (!currentUserId || !targetUserId) return
+    setIsStartingChat(true)
+
+    try {
+      const supabase = createClient()
+
+      // Check existing conversation
+      const { data: myConvs } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('user_id', currentUserId)
+
+      const myConvIds = (myConvs || []).map((c: { conversation_id: string }) => c.conversation_id)
+
+      if (myConvIds.length > 0) {
+        const { data: sharedConvs } = await supabase
+          .from('conversation_participants')
+          .select('conversation_id')
+          .eq('user_id', targetUserId)
+          .in('conversation_id', myConvIds)
+
+        if (sharedConvs && sharedConvs.length > 0) {
+          router.push(`/app/messages/${sharedConvs[0].conversation_id}`)
+          return
+        }
+      }
+
+      // Create new conversation
+      const { data: newConv, error: convError } = await supabase
+        .from('conversations')
+        .insert({})
+        .select()
+        .single()
+
+      if (convError || !newConv) throw convError || new Error('Could not start conversation')
+
+      await supabase.from('conversation_participants').insert([
+        { conversation_id: newConv.id, user_id: currentUserId, pseudonym_id: null },
+        { conversation_id: newConv.id, user_id: targetUserId, pseudonym_id: null },
+      ])
+
+      router.push(`/app/messages/${newConv.id}`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not open chat')
+    } finally {
+      setIsStartingChat(false)
     }
   }
 
@@ -177,7 +232,17 @@ export default function ProfilePage() {
                 <Pencil className="h-4 w-4" />
                 Edit Profile
               </Button>
-            ) : null}
+            ) : (
+              <Button
+                size="sm"
+                onClick={handleMessageUser}
+                disabled={isStartingChat}
+                className="gap-1.5"
+              >
+                {isStartingChat ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
+                Message
+              </Button>
+            )}
 
             <Button
               variant="outline"
@@ -209,7 +274,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Tabs / Filter Navigation */}
+      {/* Tabs Navigation */}
       <div className="flex items-center gap-2 border-b border-gray-200 dark:border-gray-800">
         <button
           onClick={() => setActiveTab('posts')}
@@ -220,12 +285,26 @@ export default function ProfilePage() {
           }`}
         >
           <FileText className="h-4 w-4" />
-          Posts ({posts.length})
+          Stories & Posts ({posts.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('timeline')}
+          className={`flex items-center gap-2 pb-3 px-3 text-sm font-semibold border-b-2 transition-colors ${
+            activeTab === 'timeline'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'
+          }`}
+        >
+          <GitCommit className="h-4 w-4" />
+          Career Journey & Pivots
         </button>
       </div>
 
-      {/* Posts List */}
-      {posts.length === 0 ? (
+      {/* Tab Content */}
+      {activeTab === 'timeline' ? (
+        <CareerTimeline userId={targetUserId!} isOwnProfile={isOwnProfile} />
+      ) : posts.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-200 p-12 text-center text-gray-500 dark:border-gray-800 dark:text-gray-400">
           <Sparkles className="mx-auto h-10 w-10 text-gray-300 dark:text-gray-600 mb-3" />
           <p className="text-base font-medium text-gray-900 dark:text-gray-100">No posts published yet</p>

@@ -8,6 +8,8 @@ const LINKS = [
   { href: '/app/feed', label: 'Feed' },
   { href: '/app/threads', label: 'Threads' },
   { href: '/app/circles', label: 'Circles' },
+  { href: '/app/messages', label: 'Messages' },
+  { href: '/app/journal', label: 'Journal' },
 ]
 
 export function AppNav() {
