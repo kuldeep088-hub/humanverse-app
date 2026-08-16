@@ -490,3 +490,24 @@ CREATE POLICY "avatars auth update own" ON storage.objects
 DROP POLICY IF EXISTS "avatars auth delete own" ON storage.objects;
 CREATE POLICY "avatars auth delete own" ON storage.objects
   FOR DELETE USING (bucket_id = 'avatars' AND owner = auth.uid());
+
+-- 13) Storage Bucket & Policies for Post Attachments
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('post-attachments', 'post-attachments', true)
+ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS "post_attachments public read" ON storage.objects;
+CREATE POLICY "post_attachments public read" ON storage.objects
+  FOR SELECT USING (bucket_id = 'post-attachments');
+
+DROP POLICY IF EXISTS "post_attachments auth upload" ON storage.objects;
+CREATE POLICY "post_attachments auth upload" ON storage.objects
+  FOR INSERT WITH CHECK (bucket_id = 'post-attachments' AND auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "post_attachments auth update own" ON storage.objects;
+CREATE POLICY "post_attachments auth update own" ON storage.objects
+  FOR UPDATE USING (bucket_id = 'post-attachments' AND owner = auth.uid());
+
+DROP POLICY IF EXISTS "post_attachments auth delete own" ON storage.objects;
+CREATE POLICY "post_attachments auth delete own" ON storage.objects
+  FOR DELETE USING (bucket_id = 'post-attachments' AND owner = auth.uid());

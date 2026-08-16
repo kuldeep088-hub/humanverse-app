@@ -448,7 +448,7 @@ export default function SearchPage() {
               <PostComponent
                 key={post.id}
                 post={post}
-                onUpdate={() => {}}
+                onUpdate={() => search(query)}
                 showThreadLink={true}
                 currentUserId={currentUserId}
               />

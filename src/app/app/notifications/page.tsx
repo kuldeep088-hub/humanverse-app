@@ -88,14 +88,14 @@ export default function NotificationsPage() {
             <Link
               key={notification.id}
               href={notification.reference_id
-                ? notification.reference_type === 'post'
+                ? notification.reference_type === 'post' || notification.reference_type === 'reply'
                   ? `/app/post/${notification.reference_id}`
                   : notification.reference_type === 'thread'
                   ? `/app/threads/${notification.reference_id}`
                   : notification.reference_type === 'circle'
-                  ? `/app/circles/${notification.reference_id}`
-                  : '#'
-                : '#'
+                  ? `/app/circles`
+                  : '/app/feed'
+                : '/app/feed'
               }
               className={`flex items-start gap-3 p-4 border rounded-lg transition-colors ${
                 !notification.read

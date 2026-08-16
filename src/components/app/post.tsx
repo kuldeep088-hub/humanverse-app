@@ -107,6 +107,13 @@ export function PostComponent({
         type,
       })
     } else {
+      if (post.user_reaction) {
+        await supabase.from('reactions').delete().match({
+          user_id: currentUserId,
+          post_id: post.id,
+          type: post.user_reaction,
+        })
+      }
       await supabase.from('reactions').upsert({
         user_id: currentUserId,
         post_id: post.id,

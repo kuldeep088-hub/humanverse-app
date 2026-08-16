@@ -150,6 +150,13 @@ export default function PostPage() {
         type,
       })
     } else {
+      if (userReactionData) {
+        await supabase.from('reactions').delete().match({
+          user_id: currentUserId,
+          reply_id: replyId,
+          type: userReactionData.type,
+        })
+      }
       await supabase.from('reactions').upsert({
         user_id: currentUserId,
         reply_id: replyId,
