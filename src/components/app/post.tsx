@@ -17,6 +17,7 @@ import { formatRelativeTime } from '@/lib/utils'
 import { Post, ReactionType } from '@/types'
 import { FormattedContent } from '@/components/app/formatted-content'
 import { isPostSaved, toggleSavedPost } from '@/lib/bookmarks'
+import { votePoll } from '@/lib/data-service'
 import {
   MessageCircle,
   MoreHorizontal,
@@ -33,6 +34,9 @@ import {
   Award,
   Heart,
   Bookmark,
+  BarChart2,
+  CheckCircle2,
+  HeartHandshake,
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -61,6 +65,14 @@ const REACTIONS: {
   { type: 'needed_this', label: 'Needed this', icon: Heart },
 ]
 
+const HELP_TAG_CONFIG: Record<string, { label: string; icon: string; style: string }> = {
+  seeking_advice: { label: 'Seeking Advice', icon: '🙋‍♂️', style: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800' },
+  offering_help: { label: 'Offering Help', icon: '🤝', style: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800' },
+  resume_review: { label: 'Resume Review', icon: '📄', style: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800' },
+  mock_interview: { label: 'Mock Interview', icon: '🎯', style: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800' },
+  layoff_support: { label: 'Layoff Support', icon: '💛', style: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800' },
+}
+
 export function PostComponent({
   post,
   onUpdate,
@@ -76,7 +88,26 @@ export function PostComponent({
   const [editContent, setEditContent] = useState(post.content)
   const [isCopied, setIsCopied] = useState(false)
   const [isSaved, setIsSaved] = useState(() => isPostSaved(post.id))
+  const [isVoting, setIsVoting] = useState(false)
+  const [optimisticVote, setOptimisticVote] = useState<{ pollId: string; optionId: string } | null>(null)
   const supabase = createClient()
+
+  const pollData = post.poll ? {
+    ...post.poll,
+    options: post.poll.options.map(opt => {
+      if (!optimisticVote || optimisticVote.pollId !== post.poll?.id) return opt
+      let count = opt.vote_count || 0
+      if (opt.id === post.poll.user_voted_option_id) count = Math.max(0, count - 1)
+      if (opt.id === optimisticVote.optionId) count += 1
+      return { ...opt, vote_count: count }
+    }),
+    total_votes: optimisticVote && optimisticVote.pollId === post.poll.id && !post.poll.user_voted_option_id
+      ? post.poll.total_votes + 1
+      : post.poll.total_votes,
+    user_voted_option_id: optimisticVote && optimisticVote.pollId === post.poll.id
+      ? optimisticVote.optionId
+      : post.poll.user_voted_option_id,
+  } : null
 
   useEffect(() => {
     const handleBookmarksChanged = () => {
@@ -129,6 +160,28 @@ export function PostComponent({
     toast.success(saved ? 'Post saved to your collection' : 'Post removed from saved')
   }
 
+  const handleVote = async (optionId: string) => {
+    if (!currentUserId) {
+      toast.error('Please sign in to vote in community polls')
+      return
+    }
+    if (!post.poll) return
+
+    setIsVoting(true)
+    setOptimisticVote({ pollId: post.poll.id, optionId })
+
+    try {
+      await votePoll(supabase, post.poll.id, optionId, currentUserId)
+      toast.success('Vote recorded anonymously')
+      onUpdate()
+    } catch {
+      setOptimisticVote(null)
+      toast.error('Could not submit vote')
+    } finally {
+      setIsVoting(false)
+    }
+  }
+
   const handleReply = async () => {
     if (!replyContent.trim() || !currentUserId) return
     setIsSubmittingReply(true)
@@ -158,26 +211,30 @@ export function PostComponent({
         .from('posts')
         .update({ content: editContent.trim() })
         .eq('id', post.id)
+
       if (error) throw error
 
       setIsEditing(false)
       toast.success('Post updated')
       onUpdate()
     } catch {
-      toast.error('Could not update post.')
+      toast.error('Could not update post')
     }
   }
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this thought?')) return
     try {
-      const { error } = await supabase.from('posts').delete().eq('id', post.id)
+      const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', post.id)
+
       if (error) throw error
 
-      toast.success('Post removed')
+      toast.success('Post deleted')
       onUpdate()
     } catch {
-      toast.error('Could not delete post.')
+      toast.error('Could not delete post')
     }
   }
 
@@ -191,12 +248,7 @@ export function PostComponent({
     }
   }
 
-  const reactionCounts = post.reaction_counts || {
-    been_there: 0,
-    oof: 0,
-    respect: 0,
-    needed_this: 0,
-  }
+  const helpTagInfo = post.help_type ? HELP_TAG_CONFIG[post.help_type] : null
 
   return (
     <article className="group rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:border-gray-300 hover:shadow dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700">
@@ -229,6 +281,14 @@ export function PostComponent({
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
                   <UserCircle className="h-3 w-3" />
                   Alias
+                </span>
+              )}
+
+              {/* Open to Support Mentor Badge */}
+              {!isPseudonymous && post.author?.open_to_help && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800">
+                  <HeartHandshake className="h-3 w-3" />
+                  Open to Support
                 </span>
               )}
 
@@ -298,18 +358,27 @@ export function PostComponent({
             </div>
           </div>
 
-          {/* Thread pill */}
-          {post.thread && showThreadLink && (
-            <Link
-              href={`/app/threads/${post.thread.slug}`}
-              className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold text-primary bg-primary/5 hover:bg-primary/10 transition-colors"
-            >
-              <Hash className="h-3 w-3" />
-              {post.thread.slug}
-            </Link>
-          )}
+          {/* Badges Bar: Thread & Help Tag */}
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            {post.thread && showThreadLink && (
+              <Link
+                href={`/app/threads/${post.thread.slug}`}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold text-primary bg-primary/5 hover:bg-primary/10 transition-colors"
+              >
+                <Hash className="h-3 w-3" />
+                {post.thread.slug}
+              </Link>
+            )}
 
-          {/* Post Content Body with Markdown & Media Support */}
+            {helpTagInfo && (
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium border ${helpTagInfo.style}`}>
+                <span>{helpTagInfo.icon}</span>
+                <span>{helpTagInfo.label}</span>
+              </span>
+            )}
+          </div>
+
+          {/* Post Content Body */}
           <div className="mt-3">
             {isEditing ? (
               <div className="space-y-2 mt-1">
@@ -332,11 +401,73 @@ export function PostComponent({
             )}
           </div>
 
+          {/* Interactive Poll Card */}
+          {pollData && (
+            <div className="mt-4 p-4 rounded-xl bg-gray-50/80 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
+                  <BarChart2 className="h-3.5 w-3.5 text-primary" />
+                  {pollData.question}
+                </h4>
+                <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                  {pollData.total_votes} {pollData.total_votes === 1 ? 'vote' : 'votes'}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {pollData.options.map((opt) => {
+                  const percentage = pollData.total_votes > 0
+                    ? Math.round(((opt.vote_count || 0) / pollData.total_votes) * 100)
+                    : 0
+                  const isUserVoted = pollData.user_voted_option_id === opt.id
+
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => handleVote(opt.id)}
+                      disabled={isVoting}
+                      className={`relative w-full text-left p-2.5 rounded-lg border text-xs transition-all overflow-hidden group ${
+                        isUserVoted
+                          ? 'border-primary bg-primary/5 font-semibold text-primary'
+                          : 'border-gray-200 bg-white hover:border-primary/50 dark:border-gray-700 dark:bg-gray-900'
+                      }`}
+                    >
+                      {/* Animated Progress Fill */}
+                      {pollData.total_votes > 0 && (
+                        <div
+                          className={`absolute top-0 bottom-0 left-0 transition-all duration-500 opacity-20 pointer-events-none ${
+                            isUserVoted ? 'bg-primary' : 'bg-gray-400 dark:bg-gray-600'
+                          }`}
+                          style={{ width: `${percentage}%` }}
+                        />
+                      )}
+
+                      <div className="relative z-10 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {isUserVoted ? (
+                            <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                          ) : (
+                            <div className="h-3.5 w-3.5 rounded-full border border-gray-300 dark:border-gray-600 shrink-0 group-hover:border-primary" />
+                          )}
+                          <span className="truncate">{opt.text}</span>
+                        </div>
+                        <span className="font-bold text-[11px] shrink-0 text-gray-600 dark:text-gray-300">
+                          {percentage}% ({opt.vote_count || 0})
+                        </span>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Reactions and Reply Bar */}
           <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-1.5">
               {REACTIONS.map(({ type, label, icon: Icon }) => {
-                const count = reactionCounts[type] || 0
+                const count = (post.reaction_counts && post.reaction_counts[type]) || 0
                 const isActive = post.user_reaction === type
                 return (
                   <button

@@ -15,6 +15,7 @@ import { redirect } from 'next/navigation'
 import { LogOut, Settings, Bell, Search, User, Hash, Users, Shield, MessageSquare, BookOpen } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { AppNav } from '@/components/app/nav'
+import { MobileNav } from '@/components/app/mobile-nav'
 import { createClient } from '@/lib/supabase/server'
 
 interface AppLayoutProps {
@@ -221,7 +222,8 @@ export default async function AppLayout({ children }: AppLayoutProps) {
           </div>
         </div>
       </header>
-      <main className="container mx-auto px-4 py-6">{children}</main>
+      <main className="container mx-auto px-4 pt-6 pb-24 md:pb-8">{children}</main>
+      <MobileNav />
     </div>
   )
 }

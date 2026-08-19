@@ -7,6 +7,9 @@ export interface Profile {
   display_name: string
   professional_context: string | null
   avatar_url: string | null
+  bio?: string | null
+  open_to_help?: boolean | null
+  help_topics?: string[] | null
   created_at: string
   updated_at: string
 }
@@ -16,6 +19,8 @@ export interface ProfileMinimal {
   display_name: string
   professional_context: string | null
   avatar_url: string | null
+  open_to_help?: boolean | null
+  help_topics?: string[] | null
 }
 
 export interface Pseudonym {
@@ -73,6 +78,34 @@ export interface CircleMember {
   joined_at: string
 }
 
+export interface PollOption {
+  id: string
+  poll_id?: string
+  text: string
+  vote_count: number
+}
+
+export interface Poll {
+  id: string
+  post_id: string
+  question: string
+  options: PollOption[]
+  total_votes: number
+  user_voted_option_id?: string | null
+  expires_at?: string | null
+  created_at: string
+}
+
+export interface PollVote {
+  id: string
+  poll_id: string
+  option_id: string
+  user_id: string
+  created_at: string
+}
+
+export type HelpType = 'seeking_advice' | 'offering_help' | 'resume_review' | 'mock_interview' | 'layoff_support'
+
 export interface Post {
   id: string
   author_id: string
@@ -81,6 +114,8 @@ export interface Post {
   circle_id: string | null
   content: string
   visibility: Visibility
+  help_type?: HelpType | null
+  poll?: Poll | null
   created_at: string
   updated_at: string
   author?: ProfileMinimal | null

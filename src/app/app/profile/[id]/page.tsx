@@ -7,7 +7,7 @@ import { PostComponent } from '@/components/app/post'
 import { fetchFeedPosts } from '@/lib/data-service'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Post } from '@/types'
+import { Post, Profile } from '@/types'
 import { EditProfileModal } from '@/components/app/edit-profile-modal'
 import { CareerTimeline } from '@/components/app/career-timeline'
 import {
@@ -21,18 +21,11 @@ import {
   ShieldCheck,
   MessageSquare,
   GitCommit,
+  HeartHandshake,
 } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
-
-interface Profile {
-  id: string
-  display_name: string
-  professional_context: string | null
-  avatar_url: string | null
-  created_at: string
-}
 
 export default function ProfilePage() {
   const params = useParams<{ id: string }>()
@@ -180,7 +173,6 @@ export default function ProfilePage() {
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Profile Header Card */}
       <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 relative overflow-hidden">
-        {/* Subtle decorative top accent */}
         <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-primary via-primary/80 to-primary/40" />
 
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 pt-2">
@@ -257,6 +249,49 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Bio Section */}
+        {profile.bio && (
+          <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+            <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
+              {profile.bio}
+            </p>
+          </div>
+        )}
+
+        {/* Open to Support / Mentorship Banner */}
+        {profile.open_to_help && (
+          <div className="mt-4 p-3.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
+                <HeartHandshake className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                Open to Giving Peer Support & Mentorship
+              </span>
+              {!isOwnProfile && (
+                <button
+                  type="button"
+                  onClick={handleMessageUser}
+                  className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:underline"
+                >
+                  Request Advice →
+                </button>
+              )}
+            </div>
+
+            {profile.help_topics && profile.help_topics.length > 0 && (
+              <div className="flex flex-wrap gap-1 pt-1">
+                {profile.help_topics.map((t, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2 py-0.5 rounded-md text-[11px] font-medium bg-white text-emerald-800 border border-emerald-200 dark:bg-gray-900 dark:text-emerald-300 dark:border-emerald-700/60 shadow-2xs"
+                  >
+                    ✓ {t}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Stats Grid */}
         <div className="grid grid-cols-3 gap-4 mt-6 pt-5 border-t border-gray-100 dark:border-gray-800 text-center">
           <div className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800/40">
@@ -301,41 +336,38 @@ export default function ProfilePage() {
         </button>
       </div>
 
-      {/* Tab Content */}
-      {activeTab === 'timeline' ? (
-        <CareerTimeline userId={targetUserId!} isOwnProfile={isOwnProfile} />
-      ) : posts.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-gray-200 p-12 text-center text-gray-500 dark:border-gray-800 dark:text-gray-400">
-          <Sparkles className="mx-auto h-10 w-10 text-gray-300 dark:text-gray-600 mb-3" />
-          <p className="text-base font-medium text-gray-900 dark:text-gray-100">No posts published yet</p>
-          <p className="mt-1 text-sm max-w-sm mx-auto">
-            {isOwnProfile
-              ? 'Share your honest workplace stories, career pivots, or real lessons learned.'
-              : 'This user hasn’t shared any public posts yet.'}
-          </p>
-          {isOwnProfile && (
-            <Button asChild className="mt-4">
-              <Link href="/app/feed">Create First Post</Link>
-            </Button>
+      {/* Tab Contents */}
+      {activeTab === 'posts' ? (
+        <div className="space-y-4">
+          {posts.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-gray-200 p-12 text-center text-gray-500 dark:border-gray-800 dark:text-gray-400">
+              <Sparkles className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+              <p className="font-semibold text-gray-900 dark:text-white">No stories published yet</p>
+              <p className="text-xs text-gray-400 mt-1">
+                {isOwnProfile ? 'Share your thoughts, layoff reflections, or career lessons to see them here.' : 'This member has not published public stories yet.'}
+              </p>
+            </div>
+          ) : (
+            posts.map(post => (
+              <PostComponent
+                key={post.id}
+                post={post}
+                onUpdate={fetchProfile}
+                currentUserId={currentUserId}
+                currentUserProfile={profile}
+              />
+            ))
           )}
         </div>
       ) : (
-        <div className="space-y-4">
-          {posts.map(post => (
-            <PostComponent
-              key={post.id}
-              post={post}
-              onUpdate={fetchProfile}
-              showThreadLink={true}
-              currentUserId={currentUserId}
-              currentUserProfile={profile}
-            />
-          ))}
-        </div>
+        <CareerTimeline
+          userId={targetUserId!}
+          isOwnProfile={isOwnProfile}
+        />
       )}
 
       {/* Edit Profile Modal */}
-      {isOwnProfile && (
+      {profile && (
         <EditProfileModal
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}

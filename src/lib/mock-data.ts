@@ -32,15 +32,67 @@ interface SeedDatabase {
   notifications: Row[]
   reports: Row[]
   drafts: Row[]
+  polls: Row[]
+  poll_options: Row[]
+  poll_votes: Row[]
+  conversations: Row[]
+  conversation_participants: Row[]
+  direct_messages: Row[]
+  career_milestones: Row[]
 }
 
 function createSeed(): SeedDatabase {
   const profiles: Row[] = [
-    { id: MOCK_USER_ID, display_name: 'Humanverse', professional_context: 'A professional network for the parts of working life that don\'t fit on a professional profile.', avatar_url: null, created_at: hoursAgo(24 * 60), updated_at: hoursAgo(24 * 60) },
-    { id: 'u-priya', display_name: 'Priya R.', professional_context: 'Product designer', avatar_url: null, created_at: hoursAgo(24 * 90), updated_at: hoursAgo(24 * 90) },
-    { id: 'u-daejung', display_name: 'Dae-jung P.', professional_context: 'Data scientist', avatar_url: null, created_at: hoursAgo(24 * 200), updated_at: hoursAgo(24 * 200) },
-    { id: 'u-marcus', display_name: 'Marcus B.', professional_context: 'Former founder', avatar_url: null, created_at: hoursAgo(24 * 400), updated_at: hoursAgo(24 * 400) },
-    { id: 'u-senior', display_name: 'Senior engineer', professional_context: 'Senior engineer', avatar_url: null, created_at: hoursAgo(24 * 300), updated_at: hoursAgo(24 * 300) },
+    {
+      id: MOCK_USER_ID,
+      display_name: 'Humanverse',
+      professional_context: 'A professional network for the parts of working life that don\'t fit on a professional profile.',
+      avatar_url: null,
+      open_to_help: true,
+      help_topics: ['Resume Review', 'Career Pivots', 'Layoff Recovery'],
+      created_at: hoursAgo(24 * 60),
+      updated_at: hoursAgo(24 * 60),
+    },
+    {
+      id: 'u-priya',
+      display_name: 'Priya R.',
+      professional_context: 'Product designer',
+      avatar_url: null,
+      open_to_help: true,
+      help_topics: ['Design Portfolio', 'Job Hunting Strategy', 'Offer Negotiation'],
+      created_at: hoursAgo(24 * 90),
+      updated_at: hoursAgo(24 * 90),
+    },
+    {
+      id: 'u-daejung',
+      display_name: 'Dae-jung P.',
+      professional_context: 'Data scientist',
+      avatar_url: null,
+      open_to_help: false,
+      help_topics: [],
+      created_at: hoursAgo(24 * 200),
+      updated_at: hoursAgo(24 * 200),
+    },
+    {
+      id: 'u-marcus',
+      display_name: 'Marcus B.',
+      professional_context: 'Former founder',
+      avatar_url: null,
+      open_to_help: true,
+      help_topics: ['Founder Burnout', 'Early Stage Lessons', 'Pivot Advice'],
+      created_at: hoursAgo(24 * 400),
+      updated_at: hoursAgo(24 * 400),
+    },
+    {
+      id: 'u-senior',
+      display_name: 'Senior engineer',
+      professional_context: 'Senior engineer',
+      avatar_url: null,
+      open_to_help: false,
+      help_topics: [],
+      created_at: hoursAgo(24 * 300),
+      updated_at: hoursAgo(24 * 300),
+    },
   ]
 
   const pseudonyms: Row[] = [
@@ -51,7 +103,7 @@ function createSeed(): SeedDatabase {
     { id: 't-rejectedagain', slug: 'rejectedagain', name: '#RejectedAgain', description: 'The rejection emails, collected.', post_count: 0, created_at: hoursAgo(24 * 400), updated_at: hoursAgo(24 * 400) },
     { id: 't-shippedit', slug: 'shippedit', name: '#ShippedIt', description: 'The work itself, for once.', post_count: 0, created_at: hoursAgo(24 * 400), updated_at: hoursAgo(24 * 400) },
     { id: 't-laidoff', slug: 'laidoff', name: '#LaidOff', description: 'Day one to day ninety.', post_count: 1, created_at: hoursAgo(24 * 400), updated_at: hoursAgo(2) },
-    { id: 't-moneytalk', slug: 'moneytalk', name: '#MoneyTalk', description: 'Real numbers. What people earn, and what they turned down.', post_count: 0, created_at: hoursAgo(24 * 400), updated_at: hoursAgo(24 * 400) },
+    { id: 't-moneytalk', slug: 'moneytalk', name: '#MoneyTalk', description: 'Real numbers. What people earn, and what they turned down.', post_count: 1, created_at: hoursAgo(24 * 400), updated_at: hoursAgo(4) },
     { id: 't-careerpivot', slug: 'careerpivot', name: '#CareerPivot', description: 'Starting over at 34. Or 51.', post_count: 0, created_at: hoursAgo(24 * 400), updated_at: hoursAgo(24 * 400) },
     { id: 't-smallwins', slug: 'smallwins', name: '#SmallWins', description: 'The ones nobody clapped for.', post_count: 1, created_at: hoursAgo(24 * 400), updated_at: hoursAgo(6) },
     { id: 't-gotitwrong', slug: 'gotitwrong', name: '#GotItWrong', description: 'Mistakes, with the cause left in.', post_count: 1, created_at: hoursAgo(24 * 400), updated_at: hoursAgo(24) },
@@ -78,23 +130,49 @@ function createSeed(): SeedDatabase {
     {
       id: 'p-liadoff-priya', author_id: 'u-priya', pseudonym_id: null, thread_id: 't-laidoff', circle_id: null,
       content: 'Ninety-four applications. Seven months. I stopped counting the rejections around forty because it was making me worse, not better. Signed an offer this morning for less money than I made in 2022, and I am genuinely fine with that.',
-      visibility: 'public', created_at: hoursAgo(2), updated_at: hoursAgo(2),
+      visibility: 'public', help_type: 'offering_help', created_at: hoursAgo(2), updated_at: hoursAgo(2),
+    },
+    {
+      id: 'p-poll-moneytalk', author_id: 'u-marcus', pseudonym_id: null, thread_id: 't-moneytalk', circle_id: null,
+      content: 'Let\'s talk real numbers candidly. When your company last restructured or offered a severance package, how many months of pay did you receive? #MoneyTalk',
+      visibility: 'public', help_type: null, created_at: hoursAgo(4), updated_at: hoursAgo(4),
     },
     {
       id: 'p-smallwins-daejung', author_id: 'u-daejung', pseudonym_id: null, thread_id: 't-smallwins', circle_id: 'c-quiet',
       content: 'Third attempt at the same certification. Passed. It took me fourteen months longer than the people I started with and I have stopped caring about that part.',
-      visibility: 'circle', created_at: hoursAgo(6), updated_at: hoursAgo(6),
+      visibility: 'circle', help_type: null, created_at: hoursAgo(6), updated_at: hoursAgo(6),
     },
     {
       id: 'p-unpopular-anon', author_id: 'u-senior', pseudonym_id: 'pseudo-anon', thread_id: 't-unpopularopinion', circle_id: null,
       content: 'We have shipped nothing in fourteen months and everyone above me knows it. I cannot say that under my own name, in this industry, at this point in my career.',
-      visibility: 'pseudonymous', created_at: hoursAgo(9), updated_at: hoursAgo(9),
+      visibility: 'pseudonymous', help_type: null, created_at: hoursAgo(9), updated_at: hoursAgo(9),
     },
     {
       id: 'p-gotitwrong-marcus', author_id: 'u-marcus', pseudonym_id: null, thread_id: 't-gotitwrong', circle_id: null,
       content: 'Full post-mortem, real numbers. We raised $2.1M, burned $1.87M, and the thing that killed us was not the market. It was that I refused to fire a friend for eleven months.',
-      visibility: 'public', created_at: hoursAgo(24), updated_at: hoursAgo(24),
+      visibility: 'public', help_type: 'seeking_advice', created_at: hoursAgo(24), updated_at: hoursAgo(24),
     },
+  ]
+
+  const polls: Row[] = [
+    {
+      id: 'poll-1',
+      post_id: 'p-poll-moneytalk',
+      question: 'How many months of severance / runway were you offered during tech layoffs?',
+      created_at: hoursAgo(4),
+      expires_at: null,
+    },
+  ]
+
+  const poll_options: Row[] = [
+    { id: 'opt-1', poll_id: 'poll-1', text: '< 1 month (or none)', vote_count: 8, created_at: hoursAgo(4) },
+    { id: 'opt-2', poll_id: 'poll-1', text: '2 - 3 months', vote_count: 24, created_at: hoursAgo(4) },
+    { id: 'opt-3', poll_id: 'poll-1', text: '4 - 6 months', vote_count: 14, created_at: hoursAgo(4) },
+    { id: 'opt-4', poll_id: 'poll-1', text: '6+ months (Golden parachute)', vote_count: 3, created_at: hoursAgo(4) },
+  ]
+
+  const poll_votes: Row[] = [
+    { id: 'pv-1', poll_id: 'poll-1', option_id: 'opt-2', user_id: 'u-priya', created_at: hoursAgo(3) },
   ]
 
   const replies: Row[] = []
@@ -135,6 +213,13 @@ function createSeed(): SeedDatabase {
     notifications,
     reports: [],
     drafts: [],
+    polls,
+    poll_options,
+    poll_votes,
+    conversations: [],
+    conversation_participants: [],
+    direct_messages: [],
+    career_milestones: [],
   }
 }
 
@@ -146,7 +231,17 @@ function loadDb(): SeedDatabase {
       const raw = window.localStorage.getItem(STORAGE_KEY)
       if (raw) {
         const parsed = JSON.parse(raw) as SeedDatabase
-        if (parsed && Array.isArray(parsed.posts)) return parsed
+        if (parsed && Array.isArray(parsed.posts)) {
+          // ensure new tables exist
+          if (!parsed.polls) parsed.polls = []
+          if (!parsed.poll_options) parsed.poll_options = []
+          if (!parsed.poll_votes) parsed.poll_votes = []
+          if (!parsed.conversations) parsed.conversations = []
+          if (!parsed.conversation_participants) parsed.conversation_participants = []
+          if (!parsed.direct_messages) parsed.direct_messages = []
+          if (!parsed.career_milestones) parsed.career_milestones = []
+          return parsed
+        }
       }
     } catch {
       // corrupted storage; fall through to seed
@@ -155,7 +250,7 @@ function loadDb(): SeedDatabase {
   return createSeed()
 }
 
-function getDb() {
+function getDb(): SeedDatabase {
   if (!db) db = loadDb()
   return db
 }
@@ -666,6 +761,25 @@ export function createMockClient() {
     },
     from(table: string) {
       return new MockQuery(table)
+    },
+    channel(name: string) {
+      const channelObj = {
+        name,
+        on(_type: string, _filter: Record<string, any>, _callback: (payload: any) => void) {
+          return channelObj
+        },
+        subscribe(callback?: (status: string) => void) {
+          if (callback) setTimeout(() => callback('SUBSCRIBED'), 10)
+          return channelObj
+        },
+        unsubscribe() {
+          return Promise.resolve('ok')
+        },
+      }
+      return channelObj
+    },
+    removeChannel(_channel: any) {
+      return Promise.resolve('ok')
     },
     storage: {
       from: () => ({

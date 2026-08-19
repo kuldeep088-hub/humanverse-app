@@ -8,7 +8,16 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar } from '@/components/ui/avatar'
 import { toast } from 'sonner'
-import { Loader2, Camera, X, Check, Briefcase, User, FileText } from 'lucide-react'
+import {
+  Loader2,
+  Camera,
+  X,
+  Check,
+  Briefcase,
+  User,
+  FileText,
+  HeartHandshake,
+} from 'lucide-react'
 import Image from 'next/image'
 
 interface EditProfileModalProps {
@@ -20,9 +29,22 @@ interface EditProfileModalProps {
     professional_context: string | null
     avatar_url: string | null
     bio?: string | null
+    open_to_help?: boolean | null
+    help_topics?: string[] | null
   }
   onProfileUpdated: () => void
 }
+
+const AVAILABLE_TOPICS = [
+  'Resume Review',
+  'Mock Interviews',
+  'Career Pivots',
+  'Offer Negotiation',
+  'Layoff Recovery',
+  'Founder Advice',
+  'System Design',
+  'Portfolio Review',
+]
 
 export function EditProfileModal({
   isOpen,
@@ -33,6 +55,8 @@ export function EditProfileModal({
   const [displayName, setDisplayName] = useState(profile.display_name || '')
   const [professionalContext, setProfessionalContext] = useState(profile.professional_context || '')
   const [bio, setBio] = useState(profile.bio || '')
+  const [openToHelp, setOpenToHelp] = useState(!!profile.open_to_help)
+  const [selectedTopics, setSelectedTopics] = useState<string[]>(profile.help_topics || [])
   const [avatarPreview, setAvatarPreview] = useState<string | null>(profile.avatar_url || null)
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -49,6 +73,14 @@ export function EditProfileModal({
       }
       setAvatarFile(file)
       setAvatarPreview(URL.createObjectURL(file))
+    }
+  }
+
+  const toggleTopic = (topic: string) => {
+    if (selectedTopics.includes(topic)) {
+      setSelectedTopics(selectedTopics.filter(t => t !== topic))
+    } else {
+      setSelectedTopics([...selectedTopics, topic])
     }
   }
 
@@ -89,6 +121,9 @@ export function EditProfileModal({
           display_name: trimmedName,
           professional_context: professionalContext.trim() || null,
           avatar_url: finalAvatarUrl,
+          bio: bio.trim() || null,
+          open_to_help: openToHelp,
+          help_topics: selectedTopics,
           updated_at: new Date().toISOString(),
         })
 
@@ -105,7 +140,7 @@ export function EditProfileModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div className="relative w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-800 dark:bg-gray-900 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-800">
@@ -218,9 +253,60 @@ export function EditProfileModal({
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               placeholder="A brief summary of your work, journey, lessons, or what you're currently building..."
-              className="mt-1.5 min-h-[90px] resize-none"
+              className="mt-1.5 min-h-[80px] resize-none"
               disabled={isLoading}
             />
+          </div>
+
+          {/* Mentorship & Peer Support Section */}
+          <div className="p-4 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <HeartHandshake className="h-4 w-4 text-emerald-600" />
+                <div>
+                  <span className="text-xs font-bold text-gray-900 dark:text-white">
+                    Open to Giving Peer Support
+                  </span>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                    Badge your profile to let others reach out for advice or help.
+                  </p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={openToHelp}
+                onChange={(e) => setOpenToHelp(e.target.checked)}
+                className="h-4 w-4 rounded text-primary focus:ring-primary"
+              />
+            </div>
+
+            {openToHelp && (
+              <div className="pt-2 border-t border-emerald-200/60 dark:border-emerald-800/60 space-y-2">
+                <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">
+                  Select topics you can help with:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {AVAILABLE_TOPICS.map(topic => {
+                    const isSelected = selectedTopics.includes(topic)
+                    return (
+                      <button
+                        key={topic}
+                        type="button"
+                        onClick={() => toggleTopic(topic)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all ${
+                          isSelected
+                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                            : 'bg-white text-gray-700 border-gray-200 hover:bg-emerald-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-700'
+                        }`}
+                      >
+                        {isSelected && '✓ '}
+                        {topic}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Footer Buttons */}

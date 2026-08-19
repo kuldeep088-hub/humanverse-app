@@ -7,7 +7,7 @@ import { Composer } from '@/components/app/composer'
 import { PostComponent } from '@/components/app/post'
 import { fetchFeedPosts } from '@/lib/data-service'
 import { isPostSaved, getSavedPostIds } from '@/lib/bookmarks'
-import { Post } from '@/types'
+import { Post, HelpType } from '@/types'
 import {
   Loader2,
   Sparkles,
@@ -17,6 +17,8 @@ import {
   ShieldCheck,
   Bookmark,
   RefreshCw,
+  HeartHandshake,
+  BarChart2,
 } from 'lucide-react'
 
 interface Circle {
@@ -34,13 +36,25 @@ interface UserProfile {
   professional_context: string | null
 }
 
+type FeedTab = 'all' | 'help' | 'polls' | 'trending' | 'circles' | 'reflections' | 'saved'
+
+const HELP_SUB_FILTERS: { id: HelpType | 'all'; label: string; icon: string }[] = [
+  { id: 'all', label: 'All Requests & Offers', icon: '🤝' },
+  { id: 'offering_help', label: 'Offering Help', icon: '✨' },
+  { id: 'seeking_advice', label: 'Seeking Advice', icon: '🙋‍♂️' },
+  { id: 'resume_review', label: 'Resume Review', icon: '📄' },
+  { id: 'mock_interview', label: 'Mock Interview', icon: '🎯' },
+  { id: 'layoff_support', label: 'Layoff Support', icon: '💛' },
+]
+
 export default function FeedPage() {
   const { userId: currentUserId, isLoading: isUserLoading } = useCurrentUser()
   const [posts, setPosts] = useState<Post[]>([])
   const [circles, setCircles] = useState<Circle[]>([])
   const [pseudonym, setPseudonym] = useState<{ id: string; display_name: string } | null>(null)
   const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(null)
-  const [activeTab, setActiveTab] = useState<'all' | 'trending' | 'circles' | 'reflections' | 'saved'>('all')
+  const [activeTab, setActiveTab] = useState<FeedTab>('all')
+  const [helpSubFilter, setHelpSubFilter] = useState<HelpType | 'all'>('all')
   const [savedCount, setSavedCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [hasNewPosts, setHasNewPosts] = useState(false)
@@ -105,6 +119,22 @@ export default function FeedPage() {
     run()
   }, [fetchFeed])
 
+  // Realtime subscription for incoming posts
+  useEffect(() => {
+    if (!currentUserId) return
+    const supabase = createClient()
+    const channel = supabase
+      .channel('feed-updates')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, () => {
+        setHasNewPosts(true)
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [currentUserId])
+
   // Listen to bookmark changes
   useEffect(() => {
     const handleBookmarkChange = () => {
@@ -117,6 +147,14 @@ export default function FeedPage() {
   // Filter posts by active tab
   const filteredPosts = posts.filter(post => {
     if (activeTab === 'all') return true
+    if (activeTab === 'help') {
+      if (!post.help_type) return false
+      if (helpSubFilter === 'all') return true
+      return post.help_type === helpSubFilter
+    }
+    if (activeTab === 'polls') {
+      return !!post.poll
+    }
     if (activeTab === 'circles') return post.visibility === 'circle'
     if (activeTab === 'saved') return isPostSaved(post.id)
     if (activeTab === 'reflections') {
@@ -153,6 +191,9 @@ export default function FeedPage() {
     )
   }
 
+  const helpPostsCount = posts.filter(p => !!p.help_type).length
+  const pollsCount = posts.filter(p => !!p.poll).length
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Top Welcome / Feed Header */}
@@ -162,7 +203,7 @@ export default function FeedPage() {
             Feed
           </h1>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-            Real stories, career pivots, and unvarnished workplace realities.
+            Real stories, career pivots, anonymous polls, and community support.
           </p>
         </div>
 
@@ -198,66 +239,113 @@ export default function FeedPage() {
       )}
 
       {/* Feed Filter Navigation Tabs */}
-      <div className="flex items-center gap-1.5 border-b border-gray-200 dark:border-gray-800 pb-2 overflow-x-auto no-scrollbar">
-        <button
-          onClick={() => setActiveTab('all')}
-          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
-            activeTab === 'all'
-              ? 'bg-primary text-primary-foreground shadow-xs'
-              : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800 dark:hover:bg-gray-800'
-          }`}
-        >
-          <Compass className="h-3.5 w-3.5" />
-          All Stories ({posts.length})
-        </button>
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-1.5 border-b border-gray-200 dark:border-gray-800 pb-2 overflow-x-auto no-scrollbar">
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+              activeTab === 'all'
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800 dark:hover:bg-gray-800'
+            }`}
+          >
+            <Compass className="h-3.5 w-3.5" />
+            All Stories ({posts.length})
+          </button>
 
-        <button
-          onClick={() => setActiveTab('trending')}
-          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
-            activeTab === 'trending'
-              ? 'bg-primary text-primary-foreground shadow-xs'
-              : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800 dark:hover:bg-gray-800'
-          }`}
-        >
-          <Flame className="h-3.5 w-3.5 text-amber-500" />
-          Trending
-        </button>
+          <button
+            onClick={() => setActiveTab('help')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+              activeTab === 'help'
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800 dark:hover:bg-gray-800'
+            }`}
+          >
+            <HeartHandshake className="h-3.5 w-3.5 text-emerald-500" />
+            Help Exchange ({helpPostsCount})
+          </button>
 
-        <button
-          onClick={() => setActiveTab('circles')}
-          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
-            activeTab === 'circles'
-              ? 'bg-primary text-primary-foreground shadow-xs'
-              : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800 dark:hover:bg-gray-800'
-          }`}
-        >
-          <Users className="h-3.5 w-3.5 text-purple-500" />
-          My Circles ({posts.filter(p => p.visibility === 'circle').length})
-        </button>
+          <button
+            onClick={() => setActiveTab('polls')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+              activeTab === 'polls'
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800 dark:hover:bg-gray-800'
+            }`}
+          >
+            <BarChart2 className="h-3.5 w-3.5 text-indigo-500" />
+            Polls ({pollsCount})
+          </button>
 
-        <button
-          onClick={() => setActiveTab('reflections')}
-          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
-            activeTab === 'reflections'
-              ? 'bg-primary text-primary-foreground shadow-xs'
-              : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800 dark:hover:bg-gray-800'
-          }`}
-        >
-          <Sparkles className="h-3.5 w-3.5 text-blue-500" />
-          Reflections & Wins
-        </button>
+          <button
+            onClick={() => setActiveTab('trending')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+              activeTab === 'trending'
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800 dark:hover:bg-gray-800'
+            }`}
+          >
+            <Flame className="h-3.5 w-3.5 text-amber-500" />
+            Trending
+          </button>
 
-        <button
-          onClick={() => setActiveTab('saved')}
-          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
-            activeTab === 'saved'
-              ? 'bg-primary text-primary-foreground shadow-xs'
-              : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800 dark:hover:bg-gray-800'
-          }`}
-        >
-          <Bookmark className="h-3.5 w-3.5 text-emerald-500" />
-          Saved ({savedCount})
-        </button>
+          <button
+            onClick={() => setActiveTab('circles')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+              activeTab === 'circles'
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800 dark:hover:bg-gray-800'
+            }`}
+          >
+            <Users className="h-3.5 w-3.5 text-purple-500" />
+            Circles ({posts.filter(p => p.visibility === 'circle').length})
+          </button>
+
+          <button
+            onClick={() => setActiveTab('reflections')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+              activeTab === 'reflections'
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800 dark:hover:bg-gray-800'
+            }`}
+          >
+            <Sparkles className="h-3.5 w-3.5 text-blue-500" />
+            Reflections
+          </button>
+
+          <button
+            onClick={() => setActiveTab('saved')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+              activeTab === 'saved'
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800 dark:hover:bg-gray-800'
+            }`}
+          >
+            <Bookmark className="h-3.5 w-3.5 text-emerald-500" />
+            Saved ({savedCount})
+          </button>
+        </div>
+
+        {/* Sub-Filter Pills for Help Exchange */}
+        {activeTab === 'help' && (
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar animate-in fade-in">
+            {HELP_SUB_FILTERS.map(f => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setHelpSubFilter(f.id)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium border shrink-0 transition-all flex items-center gap-1 ${
+                  helpSubFilter === f.id
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300 font-bold dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-700 shadow-xs'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800'
+                }`}
+              >
+                <span>{f.icon}</span>
+                <span>{f.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Posts Stream */}
@@ -269,15 +357,19 @@ export default function FeedPage() {
               ? 'No posts in your private circles yet'
               : activeTab === 'saved'
               ? 'No saved stories in your collection'
-              : activeTab === 'reflections'
-              ? 'No reflections shared under this filter yet'
+              : activeTab === 'help'
+              ? 'No active requests or help offers under this tag'
+              : activeTab === 'polls'
+              ? 'No community polls created yet'
               : 'No posts in the feed yet'}
           </p>
           <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
-            {activeTab === 'saved'
+            {activeTab === 'help'
+              ? 'Use the composer above with a help tag (e.g. "Offering Help" or "Resume Review") to support a peer.'
+              : activeTab === 'polls'
+              ? 'Create the first anonymous poll using the poll icon in the composer above!'
+              : activeTab === 'saved'
               ? 'Click the bookmark icon on any post card to save stories here for future reading.'
-              : activeTab === 'circles'
-              ? 'Share a thought with your circle using the composer above with the "Private Circle" option.'
               : 'Write what actually happened today to inspire and connect with other members.'}
           </p>
         </div>

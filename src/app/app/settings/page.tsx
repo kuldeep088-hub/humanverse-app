@@ -13,7 +13,6 @@ import {
   Shield,
   Bell,
   Users,
-  ShieldCheck,
   UserCheck,
   Trash2,
   ArrowRight,
@@ -21,18 +20,32 @@ import {
   KeyRound,
   ExternalLink,
   CheckCircle2,
+  HeartHandshake,
+  Check,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
-type SettingsTab = 'security' | 'pseudonym' | 'privacy' | 'notifications' | 'account'
+type SettingsTab = 'security' | 'mentorship' | 'pseudonym' | 'privacy' | 'notifications' | 'account'
 
 const TABS: { id: SettingsTab; label: string; icon: typeof Lock }[] = [
   { id: 'security', label: 'Security', icon: Lock },
+  { id: 'mentorship', label: 'Peer Support', icon: HeartHandshake },
   { id: 'pseudonym', label: 'Pseudonym Alias', icon: UserCheck },
   { id: 'privacy', label: 'Privacy & Circles', icon: Shield },
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'account', label: 'Account & Data', icon: User },
+]
+
+const AVAILABLE_TOPICS = [
+  'Resume Review',
+  'Mock Interviews',
+  'Career Pivots',
+  'Offer Negotiation',
+  'Layoff Recovery',
+  'Founder Advice',
+  'System Design',
+  'Portfolio Review',
 ]
 
 export default function SettingsPage() {
@@ -43,8 +56,10 @@ export default function SettingsPage() {
   const [pseudonymName, setPseudonymName] = useState('')
   const [hasPseudonym, setHasPseudonym] = useState(false)
   const [circleCount, setCircleCount] = useState(0)
+  const [openToHelp, setOpenToHelp] = useState(false)
+  const [helpTopics, setHelpTopics] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const [saveType, setSaveType] = useState<'security' | 'pseudonym' | 'delete' | ''>('')
+  const [saveType, setSaveType] = useState<'security' | 'pseudonym' | 'mentorship' | 'delete' | ''>('')
   const supabase = createClient()
   const router = useRouter()
   const { userId } = useCurrentUser()
@@ -52,10 +67,11 @@ export default function SettingsPage() {
   const fetchUserData = useCallback(async () => {
     if (!userId) return
 
-    const [authRes, pseudoRes, circlesRes] = await Promise.all([
+    const [authRes, pseudoRes, circlesRes, profileRes] = await Promise.all([
       supabase.auth.getUser(),
       supabase.from('pseudonyms').select('display_name').eq('user_id', userId).single(),
       supabase.from('circle_members').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+      supabase.from('profiles').select('open_to_help, help_topics').eq('id', userId).single(),
     ])
 
     if (authRes.data?.user?.email) {
@@ -65,6 +81,11 @@ export default function SettingsPage() {
     if (pseudoRes.data) {
       setPseudonymName(pseudoRes.data.display_name)
       setHasPseudonym(true)
+    }
+
+    if (profileRes.data) {
+      setOpenToHelp(!!profileRes.data.open_to_help)
+      setHelpTopics(profileRes.data.help_topics || [])
     }
 
     setCircleCount(circlesRes.count || 0)
@@ -110,6 +131,42 @@ export default function SettingsPage() {
     }
   }
 
+  const handleMentorshipSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!userId) return
+
+    setIsLoading(true)
+    setSaveType('mentorship')
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          open_to_help: openToHelp,
+          help_topics: helpTopics,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId)
+
+      if (error) throw error
+
+      toast.success('Peer support settings saved successfully')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not update mentorship settings')
+    } finally {
+      setIsLoading(false)
+      setSaveType('')
+    }
+  }
+
+  const toggleTopic = (topic: string) => {
+    if (helpTopics.includes(topic)) {
+      setHelpTopics(helpTopics.filter(t => t !== topic))
+    } else {
+      setHelpTopics([...helpTopics, topic])
+    }
+  }
+
   const handlePseudonymSave = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!userId) return
@@ -118,21 +175,29 @@ export default function SettingsPage() {
     setSaveType('pseudonym')
 
     try {
-      const cleanPseudo = pseudonymName.trim()
-      if (cleanPseudo) {
-        const { error } = await supabase.from('pseudonyms').upsert({
-          user_id: userId,
-          display_name: cleanPseudo,
-        })
+      const trimmed = pseudonymName.trim()
+      if (!trimmed) {
+        toast.error('Pseudonym display name cannot be blank')
+        setIsLoading(false)
+        setSaveType('')
+        return
+      }
+
+      if (hasPseudonym) {
+        const { error } = await supabase
+          .from('pseudonyms')
+          .update({ display_name: trimmed })
+          .eq('user_id', userId)
+        if (error) throw error
+      } else {
+        const { error } = await supabase
+          .from('pseudonyms')
+          .insert({ user_id: userId, display_name: trimmed })
         if (error) throw error
         setHasPseudonym(true)
-        toast.success(`Pseudonym alias updated to "${cleanPseudo}"`)
-      } else if (hasPseudonym) {
-        const { error } = await supabase.from('pseudonyms').delete().eq('user_id', userId)
-        if (error) throw error
-        setHasPseudonym(false)
-        toast.success('Pseudonym alias removed')
       }
+
+      toast.success('Pseudonym alias saved successfully')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not save pseudonym')
     } finally {
@@ -142,27 +207,22 @@ export default function SettingsPage() {
   }
 
   const handleDeleteAccount = async () => {
-    const confirmText = prompt('This will permanently delete all your posts, replies, and circles. Type "DELETE" to confirm:')
-    if (confirmText !== 'DELETE') return
+    if (!userId) return
+    const confirmed = window.confirm(
+      'Are you absolutely sure? This will delete your account, posts, replies, and remove all your data permanently.'
+    )
+    if (!confirmed) return
 
     setIsLoading(true)
     setSaveType('delete')
 
     try {
-      if (userId) {
-        await Promise.all([
-          supabase.from('posts').delete().eq('author_id', userId),
-          supabase.from('replies').delete().eq('author_id', userId),
-          supabase.from('pseudonyms').delete().eq('user_id', userId),
-          supabase.from('profiles').delete().eq('id', userId),
-        ])
-      }
-
+      await supabase.from('profiles').delete().eq('id', userId)
       await supabase.auth.signOut()
-      toast.success('Account deleted')
-      router.push('/')
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not complete deletion')
+      toast.success('Account deleted successfully.')
+      router.push('/login')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not delete account')
     } finally {
       setIsLoading(false)
       setSaveType('')
@@ -170,180 +230,234 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6">
       {/* Header */}
-      <div>
+      <div className="pb-4 border-b border-gray-200 dark:border-gray-800">
         <h1 className="text-2xl font-bold text-gray-950 dark:text-white">Settings</h1>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-          Manage your security, pseudonym alias, privacy preferences, and notifications.
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          Manage your security credentials, pseudonym identity, privacy rules, and peer mentorship preferences.
         </p>
       </div>
 
-      {/* Navigation Tabs */}
-      <nav className="flex gap-2 border-b border-gray-200 dark:border-gray-800 overflow-x-auto pb-1 no-scrollbar">
-        {TABS.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl transition-all shrink-0 ${
-              activeTab === tab.id
-                ? 'bg-primary text-primary-foreground shadow-xs'
-                : 'bg-white text-gray-600 border border-gray-200/80 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800 dark:hover:bg-gray-800'
-            }`}
-          >
-            <tab.icon className="h-3.5 w-3.5" />
-            {tab.label}
-          </button>
-        ))}
-      </nav>
+      {/* Tabs */}
+      <div className="flex items-center gap-1.5 border-b border-gray-200 dark:border-gray-800 pb-2 overflow-x-auto no-scrollbar">
+        {TABS.map((tab) => {
+          const Icon = tab.icon
+          const isActive = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all shrink-0 ${
+                isActive
+                  ? 'bg-primary text-primary-foreground shadow-xs'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800 dark:hover:bg-gray-800'
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {tab.label}
+            </button>
+          )
+        })}
+      </div>
 
       {/* Security Tab */}
       {activeTab === 'security' && (
         <div className="space-y-6 animate-in fade-in duration-200">
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-5">
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
             <div>
               <h2 className="text-base font-semibold text-gray-950 dark:text-white flex items-center gap-2">
                 <KeyRound className="h-4 w-4 text-primary" />
-                Change Password
+                Account Credentials
               </h2>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                Update your Humanverse account password.
+                Your login email address is registered as <span className="font-semibold text-gray-800 dark:text-gray-200">{email || 'your account'}</span>.
               </p>
             </div>
 
-            <form onSubmit={handleSecuritySave} className="space-y-4">
-              <div>
-                <Label htmlFor="newPassword" className="text-xs font-medium text-gray-700 dark:text-gray-300">
+            <form onSubmit={handleSecuritySave} className="space-y-4 pt-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="new-password" className="text-xs font-medium text-gray-700 dark:text-gray-300">
                   New Password
                 </Label>
                 <Input
-                  id="newPassword"
+                  id="new-password"
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="At least 6 characters"
-                  disabled={isLoading}
-                  minLength={6}
-                  required
-                  className="mt-1"
+                  className="max-w-md h-9 text-xs"
                 />
               </div>
 
-              <div>
-                <Label htmlFor="confirmPassword" className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              <div className="space-y-1.5">
+                <Label htmlFor="confirm-password" className="text-xs font-medium text-gray-700 dark:text-gray-300">
                   Confirm New Password
                 </Label>
                 <Input
-                  id="confirmPassword"
+                  id="confirm-password"
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Re-enter new password"
-                  disabled={isLoading}
-                  minLength={6}
-                  required
-                  className="mt-1"
+                  placeholder="Repeat new password"
+                  className="max-w-md h-9 text-xs"
                 />
               </div>
 
-              <div className="pt-2">
-                <Button type="submit" disabled={isLoading} className="text-xs font-semibold gap-1.5">
-                  {saveType === 'security' && isLoading ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Updating Password...
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="h-3.5 w-3.5" />
-                      Update Password
-                    </>
-                  )}
-                </Button>
-              </div>
+              <Button
+                type="submit"
+                disabled={isLoading || !newPassword || !confirmPassword}
+                size="sm"
+                className="gap-1.5 text-xs font-semibold"
+              >
+                {saveType === 'security' && isLoading ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <Lock className="h-3.5 w-3.5" />
+                    Update Password
+                  </>
+                )}
+              </Button>
             </form>
           </div>
+        </div>
+      )}
 
-          {/* Account Authentication Info Card */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-3">
+      {/* Mentorship & Peer Support Tab */}
+      {activeTab === 'mentorship' && (
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-5 animate-in fade-in duration-200">
+          <div>
             <h2 className="text-base font-semibold text-gray-950 dark:text-white flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              Authentication & Email
+              <HeartHandshake className="h-4 w-4 text-emerald-600" />
+              Peer Support & Mentorship Network
             </h2>
-            <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800/60 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Registered Email Address</p>
-                <p className="text-sm font-semibold text-gray-900 dark:text-white mt-0.5">{email || 'Authenticated User'}</p>
-              </div>
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-900">
-                <CheckCircle2 className="h-3 w-3" />
-                Verified
-              </span>
-            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Let fellow job seekers, career pivoters, and peers reach out for honest advice, mock interviews, or resume feedback.
+            </p>
           </div>
+
+          <form onSubmit={handleMentorshipSave} className="space-y-5 pt-2">
+            <div className="flex items-center justify-between p-4 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
+              <div className="space-y-0.5">
+                <span className="text-xs font-bold text-gray-900 dark:text-white">
+                  Show &ldquo;Open to Support&rdquo; Badge on Profile
+                </span>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                  Adds a mentor tag to your cards and profile so peers can message you for help.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={openToHelp}
+                onChange={(e) => setOpenToHelp(e.target.checked)}
+                className="h-4 w-4 rounded text-primary focus:ring-primary cursor-pointer"
+              />
+            </div>
+
+            {openToHelp && (
+              <div className="space-y-2.5">
+                <Label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                  Select topics you are comfortable discussing:
+                </Label>
+                <div className="flex flex-wrap gap-2">
+                  {AVAILABLE_TOPICS.map(topic => {
+                    const isSelected = helpTopics.includes(topic)
+                    return (
+                      <button
+                        key={topic}
+                        type="button"
+                        onClick={() => toggleTopic(topic)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+                          isSelected
+                            ? 'bg-emerald-600 text-white border-emerald-600 font-semibold shadow-xs'
+                            : 'bg-white text-gray-700 border-gray-200 hover:bg-emerald-50 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-700'
+                        }`}
+                      >
+                        {isSelected ? '✓ ' : '+ '}
+                        {topic}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              disabled={isLoading}
+              size="sm"
+              className="gap-1.5 text-xs font-semibold"
+            >
+              {saveType === 'mentorship' && isLoading ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Check className="h-3.5 w-3.5" />
+                  Save Peer Support Settings
+                </>
+              )}
+            </Button>
+          </form>
         </div>
       )}
 
       {/* Pseudonym Tab */}
       {activeTab === 'pseudonym' && (
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-5 animate-in fade-in duration-200">
-          <div>
-            <h2 className="text-base font-semibold text-gray-950 dark:text-white flex items-center gap-2">
-              <UserCheck className="h-4 w-4 text-primary" />
-              Pseudonym Alias
-            </h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              A persistent alias that lets you share vulnerable or candid thoughts without tying them to your real name.
-            </p>
-          </div>
-
-          <form onSubmit={handlePseudonymSave} className="space-y-4">
+        <div className="space-y-6 animate-in fade-in duration-200">
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 space-y-4">
             <div>
-              <Label htmlFor="pseudonymName" className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                Pseudonym Display Name
-              </Label>
-              <Input
-                id="pseudonymName"
-                value={pseudonymName}
-                onChange={(e) => setPseudonymName(e.target.value)}
-                placeholder="e.g. Senior Architect, BurntOutLead, Anonymous Founder"
-                disabled={isLoading}
-                className="mt-1"
-              />
-              <p className="mt-1.5 text-[11px] text-gray-400 dark:text-gray-500">
-                Leave blank and save if you wish to remove your current pseudonym.
+              <h2 className="text-base font-semibold text-gray-950 dark:text-white flex items-center gap-2">
+                <UserCheck className="h-4 w-4 text-primary" />
+                Pseudonym Identity Alias
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                Posting under your pseudonym completely decouples your verified name and employer context from the published content.
               </p>
             </div>
 
-            {hasPseudonym && (
-              <div className="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-900 text-xs text-purple-900 dark:text-purple-300">
-                Active Pseudonym: <strong>{pseudonymName}</strong>
+            <form onSubmit={handlePseudonymSave} className="space-y-4 pt-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="pseudonym-name" className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                  Pseudonym Display Name
+                </Label>
+                <Input
+                  id="pseudonym-name"
+                  value={pseudonymName}
+                  onChange={(e) => setPseudonymName(e.target.value)}
+                  placeholder="e.g. QuietObserver, TechWanderer, AnonPM"
+                  className="max-w-md h-9 text-xs"
+                />
+                <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                  This alias is visible when choosing &ldquo;Pseudonymous&rdquo; in the post composer or peer messaging.
+                </p>
               </div>
-            )}
 
-            <Button type="submit" disabled={isLoading} className="text-xs font-semibold gap-1.5">
-              {saveType === 'pseudonym' && isLoading ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Saving...
-                </>
-              ) : hasPseudonym ? (
-                'Update Pseudonym'
-              ) : (
-                'Create Pseudonym'
-              )}
-            </Button>
-          </form>
-
-          <div className="pt-4 border-t border-gray-100 dark:border-gray-800 space-y-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              Pseudonymity Guarantees
-            </h3>
-            <ul className="space-y-1.5 text-xs text-gray-600 dark:text-gray-400 list-disc list-inside">
-              <li>Pseudonymous posts attach your chosen alias, with no link to your profile or name.</li>
-              <li>Your real identity is never exposed in the public feed or thread streams.</li>
-              <li>You can update your pseudonym title at any time.</li>
-            </ul>
+              <Button
+                type="submit"
+                disabled={isLoading || !pseudonymName.trim()}
+                size="sm"
+                className="gap-1.5 text-xs font-semibold"
+              >
+                {saveType === 'pseudonym' && isLoading ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Save Pseudonym
+                  </>
+                )}
+              </Button>
+            </form>
           </div>
         </div>
       )}
@@ -439,7 +553,6 @@ export default function SettingsPage() {
       {/* Account & Data Management */}
       {activeTab === 'account' && (
         <div className="space-y-6 animate-in fade-in duration-200">
-          {/* Edit Profile Pointer Card */}
           <div className="rounded-2xl border border-primary/20 bg-primary/5 p-6 shadow-sm space-y-3">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -460,7 +573,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Danger Zone Card */}
           <div className="rounded-2xl border border-red-200 bg-white p-6 shadow-sm dark:border-red-950/60 dark:bg-gray-900 space-y-4">
             <div>
               <h2 className="text-base font-semibold text-red-600 dark:text-red-400 flex items-center gap-2">

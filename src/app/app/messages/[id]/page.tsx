@@ -148,13 +148,35 @@ export default function ConversationDetailPage() {
     scrollToBottom()
   }, [messages])
 
-  // Polling interval for live chat updates
+  // Realtime subscription for instant message delivery
   useEffect(() => {
+    if (!convId) return
+    const channel = supabase
+      .channel(`conv-${convId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'direct_messages',
+          filter: `conversation_id=eq.${convId}`,
+        },
+        () => {
+          fetchConversation(true)
+        }
+      )
+      .subscribe()
+
+    // Backup polling fallback
     const interval = setInterval(() => {
       fetchConversation(true)
-    }, 4000)
-    return () => clearInterval(interval)
-  }, [fetchConversation])
+    }, 6000)
+
+    return () => {
+      supabase.removeChannel(channel)
+      clearInterval(interval)
+    }
+  }, [convId, fetchConversation, supabase])
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
