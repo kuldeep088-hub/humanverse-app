@@ -43,6 +43,7 @@ import {
   Wand2,
   AlertTriangle,
   BookOpen,
+  PenLine,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -179,10 +180,15 @@ export function Composer({
     return scanPrivacy(`${articleTitle} ${content}`)
   }, [articleTitle, content])
 
-  // Estimated reading time for article
+  // Estimated reading time & writing stats
   const estimatedReadTime = useMemo(() => {
     const words = content.trim().split(/\s+/).filter(Boolean).length
     return Math.max(1, Math.ceil(words / 200))
+  }, [content])
+
+  const charCount = content.length
+  const wordCount = useMemo(() => {
+    return content.trim().split(/\s+/).filter(Boolean).length
   }, [content])
 
   // Open modal in specific mode
@@ -209,7 +215,7 @@ export function Composer({
     triggerButtonRef.current?.focus()
   }, [])
 
-  // Listen for Escape key to close modal
+  // Listen for Escape and Cmd+Enter keys
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
@@ -639,35 +645,41 @@ export function Composer({
       {/* ========================================================================= */}
       {/* 1. COMPACT FEED COMPOSER CARD (Initial State)                             */}
       {/* ========================================================================= */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-3.5 sm:p-4 shadow-xs dark:border-gray-800 dark:bg-gray-900 transition-all hover:border-gray-300 dark:hover:border-gray-700">
+      <div className="group/card rounded-2xl border border-gray-200/90 bg-white p-3.5 sm:p-4.5 shadow-xs hover:shadow-md dark:border-gray-800 dark:bg-gray-900 transition-all duration-300 hover:border-gray-300 dark:hover:border-gray-700">
         {/* Top Row: User Avatar + 'Start a post' input trigger */}
-        <div className="flex items-center gap-3">
-          <Avatar
-            src={userAvatarUrl || undefined}
-            fallbackName={userDisplayName}
-            className="h-10 w-10 sm:h-11 sm:w-11 rounded-full shrink-0 border border-gray-200/90 dark:border-gray-700 shadow-2xs"
-          />
+        <div className="flex items-center gap-3 sm:gap-3.5">
+          <div
+            className="relative group/avatar cursor-pointer shrink-0"
+            onClick={() => handleOpenModal('post')}
+            title="Open composer"
+          >
+            <Avatar
+              src={userAvatarUrl || undefined}
+              fallbackName={userDisplayName}
+              className="h-10 w-10 sm:h-11 sm:w-11 rounded-full shrink-0 border border-gray-200/90 dark:border-gray-700 shadow-2xs transition-transform duration-200 group-hover/avatar:scale-105"
+            />
+          </div>
 
           <button
             ref={triggerButtonRef}
             type="button"
             onClick={() => handleOpenModal('post')}
-            className="flex-1 h-10 sm:h-11 flex items-center px-4 rounded-full border border-gray-200/90 bg-gray-50/70 hover:bg-gray-100/90 dark:border-gray-700/70 dark:bg-gray-800/50 dark:hover:bg-gray-800 text-left text-xs sm:text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-all cursor-pointer shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="flex-1 h-10 sm:h-11 flex items-center px-4.5 rounded-full border border-gray-200/90 bg-gray-50/70 hover:bg-gray-100/90 hover:border-primary/40 dark:border-gray-700/70 dark:bg-gray-800/50 dark:hover:bg-gray-800 dark:hover:border-primary/40 text-left text-xs sm:text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-all duration-200 cursor-pointer shadow-2xs active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
             aria-label="Start a post"
           >
-            Start a post
+            <span>Start a post...</span>
           </button>
         </div>
 
         {/* Bottom Row: 3 Primary Actions (Video, Photo, Write article) + Poll */}
-        <div className="mt-3 pt-2.5 border-t border-gray-100 dark:border-gray-800/80 flex items-center justify-between gap-1 overflow-x-auto no-scrollbar">
+        <div className="mt-3 sm:mt-3.5 pt-2.5 sm:pt-3 border-t border-gray-100 dark:border-gray-800/80 flex items-center justify-between gap-1 overflow-x-auto no-scrollbar">
           {/* 1. Video Option */}
           <button
             type="button"
             onClick={() => handleOpenModal('video')}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300 transition-all shrink-0 cursor-pointer"
+            className="group/btn flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300 transition-all duration-200 shrink-0 cursor-pointer active:scale-95"
           >
-            <VideoIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <VideoIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 transition-transform duration-200 group-hover/btn:scale-110 group-hover/btn:-translate-y-0.5" />
             <span>Video</span>
           </button>
 
@@ -675,9 +687,9 @@ export function Composer({
           <button
             type="button"
             onClick={() => handleOpenModal('photo')}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-950/40 dark:hover:text-blue-300 transition-all shrink-0 cursor-pointer"
+            className="group/btn flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-950/40 dark:hover:text-blue-300 transition-all duration-200 shrink-0 cursor-pointer active:scale-95"
           >
-            <ImageIcon className="h-4 w-4 text-blue-500 dark:text-blue-400 shrink-0" />
+            <ImageIcon className="h-4 w-4 text-blue-500 dark:text-blue-400 shrink-0 transition-transform duration-200 group-hover/btn:scale-110 group-hover/btn:-translate-y-0.5" />
             <span>Photo</span>
           </button>
 
@@ -685,9 +697,9 @@ export function Composer({
           <button
             type="button"
             onClick={() => handleOpenModal('article')}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-950/40 dark:hover:text-amber-300 transition-all shrink-0 cursor-pointer"
+            className="group/btn flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-950/40 dark:hover:text-amber-300 transition-all duration-200 shrink-0 cursor-pointer active:scale-95"
           >
-            <FileText className="h-4 w-4 text-amber-500 dark:text-amber-400 shrink-0" />
+            <FileText className="h-4 w-4 text-amber-500 dark:text-amber-400 shrink-0 transition-transform duration-200 group-hover/btn:scale-110 group-hover/btn:-translate-y-0.5" />
             <span>Write article</span>
           </button>
 
@@ -698,9 +710,9 @@ export function Composer({
               setShowPollBuilder(true)
               handleOpenModal('post')
             }}
-            className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-indigo-50 hover:text-indigo-700 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-300 transition-all shrink-0 cursor-pointer"
+            className="group/btn hidden sm:flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-indigo-50 hover:text-indigo-700 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-300 transition-all duration-200 shrink-0 cursor-pointer active:scale-95"
           >
-            <BarChart2 className="h-4 w-4 text-indigo-500 dark:text-indigo-400 shrink-0" />
+            <BarChart2 className="h-4 w-4 text-indigo-500 dark:text-indigo-400 shrink-0 transition-transform duration-200 group-hover/btn:scale-110 group-hover/btn:-translate-y-0.5" />
             <span>Poll</span>
           </button>
         </div>
@@ -860,39 +872,48 @@ export function Composer({
             </div>
 
             {/* Mode Switcher Tabs (Post vs Article) */}
-            <div className="flex items-center justify-between px-4 sm:px-5 py-2 border-b border-gray-100 dark:border-gray-800/80 bg-gray-50/50 dark:bg-gray-800/30">
-              <div className="flex items-center gap-1">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-2.5 border-b border-gray-100 dark:border-gray-800/80 bg-gray-50/60 dark:bg-gray-800/30">
+              <div className="flex items-center gap-1.5 p-0.5 bg-gray-200/60 dark:bg-gray-800/80 rounded-xl">
                 <button
                   type="button"
                   onClick={() => setActiveMode('post')}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer ${
                     activeMode !== 'article'
-                      ? 'bg-white dark:bg-gray-800 text-gray-950 dark:text-white shadow-2xs'
-                      : 'text-gray-500 hover:text-gray-900 dark:text-gray-400'
+                      ? 'bg-white dark:bg-gray-900 text-gray-950 dark:text-white shadow-2xs'
+                      : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
                   }`}
                 >
-                  Short Post
+                  <PenLine className="h-3.5 w-3.5 text-primary" />
+                  <span>Short Post</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveMode('article')}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer ${
                     activeMode === 'article'
-                      ? 'bg-white dark:bg-gray-800 text-amber-700 dark:text-amber-300 shadow-2xs'
-                      : 'text-gray-500 hover:text-gray-900 dark:text-gray-400'
+                      ? 'bg-white dark:bg-gray-900 text-amber-700 dark:text-amber-300 shadow-2xs'
+                      : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
                   }`}
                 >
                   <FileText className="h-3.5 w-3.5 text-amber-500" />
-                  Long-form Article
+                  <span>Long-form Article</span>
                 </button>
               </div>
 
-              {activeMode === 'article' && (
-                <span className="text-[11px] font-medium text-gray-400 flex items-center gap-1">
-                  <BookOpen className="h-3 w-3" />
-                  {estimatedReadTime} min read
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {activeMode === 'article' ? (
+                  <span className="text-[11px] font-medium text-gray-400 flex items-center gap-1">
+                    <BookOpen className="h-3 w-3" />
+                    {estimatedReadTime} min read
+                  </span>
+                ) : (
+                  <div className="flex items-center gap-2 text-[11px] text-gray-400">
+                    <span>{wordCount} {wordCount === 1 ? 'word' : 'words'}</span>
+                    <span className="h-1 w-1 rounded-full bg-gray-300 dark:bg-gray-600" />
+                    <span>{charCount} chars</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Privacy Shield Drawer */}
@@ -908,7 +929,7 @@ export function Composer({
                     size="sm"
                     variant="outline"
                     onClick={handleApplyAnonymize}
-                    className="h-7 text-xs gap-1.5 bg-white text-amber-900 border-amber-300 hover:bg-amber-100 dark:bg-gray-900 dark:text-amber-200 dark:border-amber-700"
+                    className="h-7 text-xs gap-1.5 bg-white text-amber-900 border-amber-300 hover:bg-amber-100 dark:bg-gray-900 dark:text-amber-200 dark:border-amber-700 cursor-pointer"
                   >
                     <Wand2 className="h-3 w-3 text-amber-600" />
                     1-Click De-Identify
@@ -935,10 +956,10 @@ export function Composer({
             )}
 
             {/* Scrollable Content Body */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
               {/* ARTICLE MODE: Headline & Cover Photo */}
               {activeMode === 'article' && (
-                <div className="space-y-3 pb-2 border-b border-gray-100 dark:border-gray-800">
+                <div className="space-y-3 pb-2 border-b border-gray-100 dark:border-gray-800 animate-in fade-in">
                   {/* Article Cover Image */}
                   {articleCover ? (
                     <div className="relative rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 max-h-56">
@@ -953,7 +974,7 @@ export function Composer({
                       <button
                         type="button"
                         onClick={handleRemoveArticleCover}
-                        className="absolute top-2 right-2 p-1.5 rounded-full bg-gray-950/80 text-white hover:bg-gray-950 transition-colors"
+                        className="absolute top-2 right-2 p-1.5 rounded-full bg-gray-950/80 text-white hover:bg-gray-950 transition-colors cursor-pointer"
                         title="Remove cover"
                       >
                         <X className="h-4 w-4" />
@@ -981,26 +1002,36 @@ export function Composer({
                 </div>
               )}
 
-              {/* Main Text Editor */}
-              <Textarea
-                ref={textareaRef}
-                placeholder={
-                  activeMode === 'article'
-                    ? 'Write your detailed story, analysis, career advice, or deep-dive article here...'
-                    : isAnonymous
-                    ? 'Share candid experiences, unfiltered compensation details, or what really happened without your name attached...'
-                    : 'What are you thinking about? Share real stories, lessons, or reflections...'
-                }
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                className={`w-full resize-none border-none p-0 focus-visible:ring-0 text-sm sm:text-base leading-relaxed placeholder:text-gray-400 dark:placeholder:text-gray-500 bg-transparent shadow-none ${
-                  activeMode === 'article' ? 'min-h-[220px]' : 'min-h-[140px]'
-                }`}
-              />
+              {/* Main Text Editor (Short Post / Article) */}
+              <div className="relative min-h-[150px]">
+                <Textarea
+                  ref={textareaRef}
+                  placeholder={
+                    activeMode === 'article'
+                      ? 'Write your detailed story, analysis, career advice, or deep-dive article here...'
+                      : isAnonymous
+                      ? 'Share candid experiences, unfiltered compensation details, or what really happened without your name attached...'
+                      : 'What are you thinking about? Share real stories, lessons, or reflections...'
+                  }
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  onKeyDown={(e) => {
+                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                      e.preventDefault()
+                      if (hasValidContent && !isSubmitting) {
+                        handleSubmit(false)
+                      }
+                    }
+                  }}
+                  className={`w-full resize-none border-none p-0 focus-visible:ring-0 text-[15px] sm:text-base leading-relaxed text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 bg-transparent shadow-none selection:bg-primary/20 ${
+                    activeMode === 'article' ? 'min-h-[220px]' : 'min-h-[150px]'
+                  }`}
+                />
+              </div>
 
               {/* Attached Image Preview (Standard Mode) */}
               {attachedImage && (
-                <div className="relative inline-block rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                <div className="relative inline-block rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 animate-in fade-in zoom-in-95">
                   <Image
                     src={attachedImage}
                     alt="Upload preview"
@@ -1012,7 +1043,7 @@ export function Composer({
                   <button
                     type="button"
                     onClick={handleRemoveImage}
-                    className="absolute top-2 right-2 p-1.5 rounded-full bg-gray-950/80 text-white hover:bg-gray-950 transition-colors"
+                    className="absolute top-2 right-2 p-1.5 rounded-full bg-gray-950/80 text-white hover:bg-gray-950 transition-colors cursor-pointer"
                     title="Remove image"
                   >
                     <X className="h-4 w-4" />
@@ -1022,7 +1053,7 @@ export function Composer({
 
               {/* Attached Video Preview */}
               {attachedVideo && (
-                <div className="relative rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-black max-h-60">
+                <div className="relative rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-black max-h-60 animate-in fade-in zoom-in-95">
                   <video
                     src={attachedVideo}
                     controls
@@ -1031,7 +1062,7 @@ export function Composer({
                   <button
                     type="button"
                     onClick={handleRemoveVideo}
-                    className="absolute top-2 right-2 p-1.5 rounded-full bg-gray-950/80 text-white hover:bg-gray-950 transition-colors"
+                    className="absolute top-2 right-2 p-1.5 rounded-full bg-gray-950/80 text-white hover:bg-gray-950 transition-colors cursor-pointer"
                     title="Remove video"
                   >
                     <X className="h-4 w-4" />
@@ -1041,7 +1072,7 @@ export function Composer({
 
               {/* Poll Builder Box */}
               {showPollBuilder && (
-                <div className="p-3.5 rounded-2xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 space-y-3 animate-in fade-in">
+                <div className="p-4 rounded-2xl bg-gray-50/80 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 space-y-3 animate-in fade-in zoom-in-95">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
                       <BarChart2 className="h-4 w-4 text-indigo-500" />
@@ -1050,7 +1081,7 @@ export function Composer({
                     <button
                       type="button"
                       onClick={() => setShowPollBuilder(false)}
-                      className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                      className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
@@ -1060,7 +1091,7 @@ export function Composer({
                     placeholder="Ask a question (e.g. How long did your job hunt take?)"
                     value={pollQuestion}
                     onChange={(e) => setPollQuestion(e.target.value)}
-                    className="h-8 text-xs bg-white dark:bg-gray-900"
+                    className="h-9 text-xs bg-white dark:bg-gray-900"
                   />
 
                   <div className="space-y-2">
@@ -1076,7 +1107,7 @@ export function Composer({
                           <button
                             type="button"
                             onClick={() => handleRemovePollOption(idx)}
-                            className="p-1.5 text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                            className="p-1.5 text-gray-400 hover:text-red-500 transition-colors shrink-0 cursor-pointer"
                             title="Remove option"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -1101,7 +1132,7 @@ export function Composer({
 
               {/* Detected Thread Banner */}
               {detectedThreads.length > 0 && (
-                <div className="flex items-center gap-1.5 text-xs text-primary font-medium bg-primary/5 py-1 px-2.5 rounded-lg w-fit border border-primary/15">
+                <div className="flex items-center gap-1.5 text-xs text-primary font-medium bg-primary/5 py-1 px-2.5 rounded-lg w-fit border border-primary/15 animate-in fade-in">
                   <Hash className="h-3.5 w-3.5 shrink-0" />
                   <span>Publishing into: {detectedThreads.map(t => `#${t}`).join(', ')}</span>
                 </div>
@@ -1109,16 +1140,16 @@ export function Composer({
             </div>
 
             {/* Modal Footer Action Bar */}
-            <div className="p-3.5 sm:p-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900 flex flex-wrap items-center justify-between gap-3 shrink-0">
+            <div className="p-3.5 sm:p-4.5 border-t border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-900/80 flex flex-wrap items-center justify-between gap-3 shrink-0">
               {/* Left Media & Formatting Tools */}
               <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
                 {/* Photo Picker */}
                 <button
                   type="button"
                   onClick={() => imageInputRef.current?.click()}
-                  className={`p-2 rounded-xl text-xs transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  className={`p-2 rounded-xl text-xs transition-all duration-150 flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95 ${
                     attachedImage
-                      ? 'bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-950/50 dark:text-blue-300'
+                      ? 'bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 shadow-2xs'
                       : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800'
                   }`}
                   title="Attach Photo"
@@ -1130,9 +1161,9 @@ export function Composer({
                 <button
                   type="button"
                   onClick={() => videoInputRef.current?.click()}
-                  className={`p-2 rounded-xl text-xs transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  className={`p-2 rounded-xl text-xs transition-all duration-150 flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95 ${
                     attachedVideo
-                      ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300'
+                      ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 shadow-2xs'
                       : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800'
                   }`}
                   title="Attach Video"
@@ -1144,9 +1175,9 @@ export function Composer({
                 <button
                   type="button"
                   onClick={() => setShowPollBuilder(!showPollBuilder)}
-                  className={`p-2 rounded-xl text-xs transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  className={`p-2 rounded-xl text-xs transition-all duration-150 flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95 ${
                     showPollBuilder
-                      ? 'bg-indigo-50 text-indigo-600 border border-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300'
+                      ? 'bg-indigo-50 text-indigo-600 border border-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 shadow-2xs'
                       : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800'
                   }`}
                   title="Add Poll"
@@ -1154,12 +1185,14 @@ export function Composer({
                   <BarChart2 className="h-4 w-4 text-indigo-500" />
                 </button>
 
+                <div className="h-4 w-[1px] bg-gray-200 dark:bg-gray-700 mx-1 hidden sm:block" />
+
                 {/* Formatting: Bold */}
                 <button
                   type="button"
                   onClick={handleInsertBold}
-                  className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-                  title="Bold"
+                  className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer"
+                  title="Bold (**text**)"
                 >
                   <Bold className="h-4 w-4" />
                 </button>
@@ -1168,18 +1201,18 @@ export function Composer({
                 <button
                   type="button"
                   onClick={handleInsertItalic}
-                  className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-                  title="Italic"
+                  className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer"
+                  title="Italic (*text*)"
                 >
                   <Italic className="h-4 w-4" />
                 </button>
 
-                {/* Formatting: Heading (Article or Short Post) */}
+                {/* Formatting: Heading */}
                 <button
                   type="button"
                   onClick={handleInsertHeading}
-                  className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-                  title="Heading"
+                  className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer"
+                  title="Heading (## Section)"
                 >
                   <Heading2 className="h-4 w-4" />
                 </button>
@@ -1188,8 +1221,8 @@ export function Composer({
                 <button
                   type="button"
                   onClick={handleInsertQuote}
-                  className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-                  title="Quote"
+                  className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer"
+                  title="Quote (> quote)"
                 >
                   <Quote className="h-4 w-4" />
                 </button>
@@ -1198,21 +1231,25 @@ export function Composer({
                 <button
                   type="button"
                   onClick={handleInsertCode}
-                  className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-                  title="Code snippet"
+                  className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer"
+                  title="Code snippet (```code```)"
                 >
                   <Code className="h-4 w-4" />
                 </button>
               </div>
 
-              {/* Right Side: Draft & Post / Publish */}
-              <div className="flex items-center gap-2 ml-auto">
+              {/* Right Side: Keyboard Hint + Draft & Post / Publish */}
+              <div className="flex items-center gap-2.5 ml-auto">
+                <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-gray-400 font-medium select-none pr-1">
+                  <kbd className="px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-[10px] font-mono">⌘↵</kbd> to post
+                </span>
+
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => handleSubmit(true)}
                   disabled={isSubmitting || (!content.trim() && !attachedImage && !attachedVideo)}
-                  className="h-9 text-xs text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                  className="h-9 text-xs text-gray-500 hover:text-gray-900 dark:hover:text-white transition-all active:scale-95 cursor-pointer"
                 >
                   <Save className="mr-1.5 h-3.5 w-3.5" />
                   Draft
@@ -1222,7 +1259,7 @@ export function Composer({
                   size="sm"
                   onClick={() => handleSubmit(false)}
                   disabled={isSubmitting || !hasValidContent}
-                  className="h-9 gap-1.5 text-xs font-semibold px-5 rounded-full shadow-xs cursor-pointer"
+                  className="h-9 gap-1.5 text-xs font-semibold px-5 rounded-full shadow-xs transition-all duration-200 hover:shadow-md active:scale-95 cursor-pointer"
                 >
                   {isSubmitting ? (
                     <>
