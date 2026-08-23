@@ -30,10 +30,9 @@ const Avatar = React.forwardRef<
       />
       <AvatarPrimitive.Fallback
         className={cn(
-          'flex h-full w-full items-center justify-center rounded-full bg-muted text-foreground',
-          fallbackName ? 'text-sm font-medium' : ''
+          'flex h-full w-full items-center justify-center rounded-full bg-primary/10 text-primary font-semibold select-none',
+          fallbackName ? 'text-sm font-semibold' : ''
         )}
-        delayMs={600}
       >
         {fallbackName ? getInitials(fallbackName) : '?'}
       </AvatarPrimitive.Fallback>

@@ -127,9 +127,64 @@ export function Composer({
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const triggerButtonRef = useRef<HTMLButtonElement>(null)
 
+  // User Profile State & Dynamic Fetch
+  const [fetchedProfile, setFetchedProfile] = useState<{
+    display_name: string
+    avatar_url: string | null
+    professional_context: string | null
+  } | null>(null)
+
+  const profile = currentUserProfile || fetchedProfile
+
   const router = useRouter()
   const supabase = createClient()
   const { userId } = useCurrentUser()
+
+  // Fetch logged-in user profile dynamically if not provided
+  useEffect(() => {
+    if (!userId || currentUserProfile) return
+    let isCancelled = false
+
+    const fetchUserProfile = async () => {
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('display_name, avatar_url, professional_context')
+          .eq('id', userId)
+          .single()
+
+        if (!isCancelled && data) {
+          setFetchedProfile({
+            display_name: data.display_name || 'Member',
+            avatar_url: data.avatar_url || null,
+            professional_context: data.professional_context || null,
+          })
+        } else if (!isCancelled) {
+          const { data: authUser } = await supabase.auth.getUser()
+          if (!isCancelled && authUser?.user) {
+            setFetchedProfile({
+              display_name:
+                authUser.user.user_metadata?.display_name ||
+                authUser.user.email?.split('@')[0] ||
+                'Member',
+              avatar_url:
+                authUser.user.user_metadata?.avatar_url ||
+                authUser.user.user_metadata?.picture ||
+                null,
+              professional_context: null,
+            })
+          }
+        }
+      } catch {
+        // Silently handle
+      }
+    }
+
+    fetchUserProfile()
+    return () => {
+      isCancelled = true
+    }
+  }, [userId, supabase, currentUserProfile])
 
   const detectedThreads = extractThreads(content)
 
@@ -584,11 +639,16 @@ export function Composer({
   // Active Display Info
   const selectedOption = VISIBILITY_OPTIONS.find(o => o.value === visibility)!
   const OptionIcon = selectedOption.icon
+  
+  // Real User Info from dynamic profile
+  const userDisplayName = profile?.display_name || currentUserProfile?.display_name || 'You'
+  const userAvatarUrl = profile?.avatar_url || currentUserProfile?.avatar_url || null
+
   const isAnonymous = visibility === 'pseudonymous'
   const activeDisplayName = isAnonymous
     ? pseudonym?.display_name || 'Anonymous Alias'
-    : currentUserProfile?.display_name || 'You'
-  const activeAvatarUrl = isAnonymous ? null : currentUserProfile?.avatar_url
+    : userDisplayName
+  const activeAvatarUrl = isAnonymous ? null : userAvatarUrl
 
   // Is Publish button valid
   const hasValidContent =
@@ -605,16 +665,16 @@ export function Composer({
         {/* Top Row: User Avatar + 'Start a post' input trigger */}
         <div className="flex items-center gap-3">
           <Avatar
-            src={currentUserProfile?.avatar_url || undefined}
-            fallbackName={currentUserProfile?.display_name || 'You'}
-            className="h-10 w-10 sm:h-11 sm:w-11 shrink-0 border border-gray-200/80 dark:border-gray-700"
+            src={userAvatarUrl || undefined}
+            fallbackName={userDisplayName}
+            className="h-10 w-10 sm:h-11 sm:w-11 rounded-full shrink-0 border border-gray-200/90 dark:border-gray-700 shadow-2xs"
           />
 
           <button
             ref={triggerButtonRef}
             type="button"
             onClick={() => handleOpenModal('post')}
-            className="flex-1 rounded-full border border-gray-200/90 bg-gray-50/70 hover:bg-gray-100/90 dark:border-gray-700/70 dark:bg-gray-800/50 dark:hover:bg-gray-800 px-4 py-2.5 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-all cursor-pointer shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="flex-1 h-10 sm:h-11 flex items-center px-4 rounded-full border border-gray-200/90 bg-gray-50/70 hover:bg-gray-100/90 dark:border-gray-700/70 dark:bg-gray-800/50 dark:hover:bg-gray-800 text-left text-xs sm:text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-all cursor-pointer shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             aria-label="Start a post"
           >
             Start a post
