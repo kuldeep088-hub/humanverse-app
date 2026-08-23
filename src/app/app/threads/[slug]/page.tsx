@@ -170,18 +170,13 @@ export default function ThreadDetailPage() {
       </div>
 
       {/* Inline Post Composer Pre-Tagged with #{slug} */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
-          Post in #{thread.slug}
-        </p>
-        <Composer
-          initialContent={`#${thread.slug} `}
-          circles={circles}
-          pseudonym={pseudonym}
-          currentUserProfile={currentUserProfile}
-          onPostCreated={fetchThreadData}
-        />
-      </div>
+      <Composer
+        initialContent={`#${thread.slug} `}
+        circles={circles}
+        pseudonym={pseudonym}
+        currentUserProfile={currentUserProfile}
+        onPostCreated={fetchThreadData}
+      />
 
       {/* Posts Section */}
       {posts.length === 0 ? (
