@@ -24,7 +24,7 @@ const Avatar = React.forwardRef<
       {...props}
     >
       <AvatarPrimitive.Image
-        className="aspect-square h-full w-full"
+        className="aspect-square h-full w-full object-cover rounded-full"
         src={src}
         alt={fallbackName || ''}
       />

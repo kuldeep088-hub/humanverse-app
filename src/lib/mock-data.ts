@@ -47,7 +47,7 @@ function createSeed(): SeedDatabase {
       id: MOCK_USER_ID,
       display_name: 'Humanverse',
       professional_context: 'A professional network for the parts of working life that don\'t fit on a professional profile.',
-      avatar_url: null,
+      avatar_url: 'https://btghnxmkqanclqfrjayv.supabase.co/storage/v1/object/public/avatars/7317092f-2280-4ba8-8586-1bcf5788a23a/avatar_1786883470941.png',
       open_to_help: true,
       help_topics: ['Resume Review', 'Career Pivots', 'Layoff Recovery'],
       created_at: hoursAgo(24 * 60),
