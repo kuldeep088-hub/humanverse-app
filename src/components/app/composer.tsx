@@ -17,7 +17,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { extractThreads } from '@/lib/utils'
 import { scanPrivacy, anonymizeContent, PrivacyScanResult } from '@/lib/privacy-scanner'
-import { HelpType } from '@/types'
 import {
   Globe,
   Users,
@@ -27,7 +26,6 @@ import {
   Hash,
   Loader2,
   ChevronDown,
-  Sparkles,
   Image as ImageIcon,
   Video as VideoIcon,
   FileText,
@@ -42,7 +40,6 @@ import {
   BarChart2,
   Plus,
   Trash2,
-  HeartHandshake,
   Wand2,
   AlertTriangle,
   BookOpen,
@@ -72,16 +69,6 @@ const VISIBILITY_OPTIONS = [
   { value: 'circle', label: 'Private Circle', icon: Users, desc: 'Shared only with selected circle members' },
 ] as const
 
-const QUICK_TOPICS = ['#RejectedAgain', '#ShippedIt', '#GotItWrong', '#MoneyTalk', '#SmallWins', '#CareerPivot']
-
-const HELP_TYPES: { id: HelpType; label: string; icon: string }[] = [
-  { id: 'seeking_advice', label: 'Seeking Advice', icon: '🙋‍♂️' },
-  { id: 'offering_help', label: 'Offering Help', icon: '🤝' },
-  { id: 'resume_review', label: 'Resume Review', icon: '📄' },
-  { id: 'mock_interview', label: 'Mock Interview', icon: '🎯' },
-  { id: 'layoff_support', label: 'Layoff Support', icon: '💛' },
-]
-
 export function Composer({
   initialContent = '',
   circles,
@@ -103,7 +90,6 @@ export function Composer({
   // Visibility & Target States
   const [visibility, setVisibility] = useState<'public' | 'circle' | 'pseudonymous'>('public')
   const [selectedCircle, setSelectedCircle] = useState<string>('')
-  const [selectedHelpType, setSelectedHelpType] = useState<HelpType | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Media Attachment States
@@ -242,13 +228,7 @@ export function Composer({
     }
   }, [isOpen, handleCloseModal])
 
-  // Tag & Formatting Handlers
-  const handleAddTag = (tag: string) => {
-    if (!content.includes(tag)) {
-      setContent(prev => (prev.trim() ? `${prev.trim()} ${tag} ` : `${tag} `))
-    }
-  }
-
+  // Formatting Handlers
   const handleInsertCode = () => {
     setContent(prev => `${prev}\n\`\`\`\n// Add your code or reflection snippet here\n\`\`\`\n`)
   }
@@ -585,7 +565,6 @@ export function Composer({
         thread_id: threadId,
         circle_id: circleId,
         pseudonym_id: pseudonymId,
-        help_type: selectedHelpType || null,
       }).select().single()
 
       if (error) throw error
@@ -615,7 +594,6 @@ export function Composer({
       handleRemoveImage()
       handleRemoveVideo()
       setSelectedCircle('')
-      setSelectedHelpType(null)
       setShowPollBuilder(false)
       setPollQuestion('')
       setPollOptions(['', ''])
@@ -1118,52 +1096,6 @@ export function Composer({
                       Add Option
                     </button>
                   )}
-                </div>
-              )}
-
-              {/* Help Tag Selector */}
-              <div className="pt-2 flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-                <span className="text-[11px] font-semibold text-gray-400 shrink-0 flex items-center gap-1">
-                  <HeartHandshake className="h-3 w-3 text-primary" />
-                  Tag:
-                </span>
-                {HELP_TYPES.map(ht => {
-                  const isSelected = selectedHelpType === ht.id
-                  return (
-                    <button
-                      key={ht.id}
-                      type="button"
-                      onClick={() => setSelectedHelpType(isSelected ? null : ht.id)}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border shrink-0 transition-all flex items-center gap-1 cursor-pointer ${
-                        isSelected
-                          ? 'bg-primary/10 text-primary border-primary font-bold shadow-xs'
-                          : 'bg-gray-50 text-gray-600 border-gray-200/80 hover:bg-gray-100 hover:text-gray-900 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700/80'
-                      }`}
-                    >
-                      <span>{ht.icon}</span>
-                      <span>{ht.label}</span>
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* Quick Topics */}
-              {!content && !attachedImage && !attachedVideo && (
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-                  <span className="text-[11px] font-semibold text-gray-400 shrink-0 flex items-center gap-1">
-                    <Sparkles className="h-3 w-3 text-amber-500" />
-                    Topics:
-                  </span>
-                  {QUICK_TOPICS.map(tag => (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => handleAddTag(tag)}
-                      className="px-2.5 py-1 rounded-md bg-gray-50 text-[11px] font-medium text-gray-600 border border-gray-200/60 hover:bg-gray-100 hover:text-primary dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700/60 shrink-0 transition-colors cursor-pointer"
-                    >
-                      {tag}
-                    </button>
-                  ))}
                 </div>
               )}
 
