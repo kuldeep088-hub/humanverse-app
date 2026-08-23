@@ -766,6 +766,9 @@ export function createMockClient() {
       const channelObj = {
         name,
         on(_type: string, _filter: Record<string, any>, _callback: (payload: any) => void) {
+          void _type
+          void _filter
+          void _callback
           return channelObj
         },
         subscribe(callback?: (status: string) => void) {
@@ -779,6 +782,7 @@ export function createMockClient() {
       return channelObj
     },
     removeChannel(_channel: any) {
+      void _channel
       return Promise.resolve('ok')
     },
     storage: {
