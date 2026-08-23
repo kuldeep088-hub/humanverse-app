@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Humanverse - Product Tour Video</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 40px 20px;
+      background: #090d1a;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .container {
+      max-width: 1100px;
+      width: 100%;
+    }
+    .header {
+      margin-bottom: 28px;
+      text-align: center;
+    }
+    .badge {
+      display: inline-block;
+      padding: 6px 16px;
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #a5b4fc;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 38px;
+      font-weight: 800;
+      margin: 0 0 10px 0;
+      background: linear-gradient(135deg, #fff 40%, #c7d2fe 80%, #f472b6 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    p.sub {
+      font-size: 17px;
+      color: #94a3b8;
+      margin: 0;
+    }
+    .video-wrapper {
+      position: relative;
+      width: 100%;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      background: #000;
+      margin-bottom: 36px;
+    }
+    video {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+      margin-top: 10px;
+    }
+    .card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .card h3 {
+      font-size: 16px;
+      margin: 0 0 8px 0;
+      color: #f1f5f9;
+    }
+    .card p {
+      font-size: 13px;
+      color: #94a3b8;
+      margin: 0;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="badge">Official Product Tour</div>
+      <h1>Humanverse Product Showcase</h1>
+      <p class="sub">The Honest Professional Network for the Unpolished Reality of Work</p>
+    </div>
+
+    <div class="video-wrapper">
+      <video controls autoplay muted loop playsinline>
+        <source src="humanverse_full_product_tour.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+      </video>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>🛡️ Dual Identity Protection</h3>
+        <p>Post with verified identity or toggle into an encrypted pseudonym for delicate workplace & salary discussions.</p>
+      </div>
+      <div class="card">
+        <h3>🤝 Empathetic Reactions</h3>
+        <p>Support peers through authentic career moments with "Been there", "Respect", "Needed this", and "Oof".</p>
+      </div>
+      <div class="card">
+        <h3>🎯 Career Threads</h3>
+        <p>Dedicated communities like #LaidOff, #RejectedAgain, and #CareerPivot for peer advice and solidarity.</p>
+      </div>
+      <div class="card">
+        <h3>✨ Help Marketplace</h3>
+        <p>Reciprocal resume audits, mock interviews, and layoff assistance directly from experienced professionals.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
