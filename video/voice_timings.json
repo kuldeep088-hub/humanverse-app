@@ -1,0 +1,75 @@
+{
+  "totalDuration": 67,
+  "timings": [
+    {
+      "id": "01_intro",
+      "step": "00",
+      "stepTitle": "WELCOME TO HUMANVERSE",
+      "start": 0.5,
+      "duration": 8.256746031746031,
+      "end": 8.756746031746031,
+      "text": "Welcome to Humanverse, the authentic professional network designed for the real, unpolished parts of career life. Here is how to use Humanverse.",
+      "wavPath": "video/voice_clips/01_intro.wav"
+    },
+    {
+      "id": "02_feed",
+      "step": "01",
+      "stepTitle": "EXPLORE FEED & EMPATHY REACTIONS",
+      "start": 9.95674603174603,
+      "duration": 8.43048752834467,
+      "end": 18.3872335600907,
+      "text": "First, explore the live feed. Read honest career stories, and react with empathy using badges like Been there, Respect, or Needed this.",
+      "wavPath": "video/voice_clips/02_feed.wav"
+    },
+    {
+      "id": "03_pseudonym",
+      "step": "02",
+      "stepTitle": "DUAL-IDENTITY & SAFE POSTING",
+      "start": 19.587233560090702,
+      "duration": 9.887312925170068,
+      "end": 29.47454648526077,
+      "text": "Next, creating a post. When sharing sensitive topics like compensation or layoffs, toggle the Pseudonym switch for complete privacy and zero employment risk.",
+      "wavPath": "video/voice_clips/03_pseudonym.wav"
+    },
+    {
+      "id": "04_threads",
+      "step": "03",
+      "stepTitle": "JOIN DEDICATED CAREER THREADS",
+      "start": 30.67454648526077,
+      "duration": 8.959739229024944,
+      "end": 39.63428571428571,
+      "text": "Explore dedicated Career Threads. Jump into Laid Off, Rejected Again, or Career Pivot to exchange actionable advice and solidarity with peers.",
+      "wavPath": "video/voice_clips/04_threads.wav"
+    },
+    {
+      "id": "05_help",
+      "step": "04",
+      "stepTitle": "HELP & MENTORSHIP MARKETPLACE",
+      "start": 40.83428571428571,
+      "duration": 8.54014739229025,
+      "end": 49.374433106575964,
+      "text": "Need guidance or want to give back? Use the Help marketplace to request resume audits, mock interviews, and find mentorship without paywalls.",
+      "wavPath": "video/voice_clips/05_help.wav"
+    },
+    {
+      "id": "06_circles_journal",
+      "step": "05",
+      "stepTitle": "CIRCLES & PRIVATE CAREER JOURNAL",
+      "start": 50.57443310657596,
+      "duration": 7.362369614512471,
+      "end": 57.93680272108843,
+      "text": "Finally, join niche Circles for your domain, and use your private Career Journal to reflect on daily milestones and personal growth.",
+      "wavPath": "video/voice_clips/06_circles_journal.wav"
+    },
+    {
+      "id": "07_outro",
+      "step": "06",
+      "stepTitle": "START YOUR AUTHENTIC JOURNEY",
+      "start": 59.13680272108843,
+      "duration": 6.399285714285714,
+      "end": 65.53608843537414,
+      "text": "Work is human, and your network should be too. Start your authentic journey on Humanverse today at humanverse.fun.",
+      "wavPath": "video/voice_clips/07_outro.wav"
+    }
+  ]
+}
