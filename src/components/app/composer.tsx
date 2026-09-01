@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useRef, useMemo, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useCurrentUser } from '@/lib/use-current-user'
-import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { Avatar } from '@/components/ui/avatar'
@@ -16,35 +15,20 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import { extractThreads } from '@/lib/utils'
-import { scanPrivacy, anonymizeContent, PrivacyScanResult } from '@/lib/privacy-scanner'
 import { getProfilePhoto, getRealAuthorName } from '@/lib/avatar'
 import {
   Globe,
   Users,
   UserCircle,
-  Send,
-  Save,
-  Hash,
   Loader2,
   ChevronDown,
   Image as ImageIcon,
   Video as VideoIcon,
   FileText,
   X,
-  Code,
-  Bold,
-  Italic,
-  Heading2,
-  Quote,
-  ShieldCheck,
-  ShieldAlert,
   BarChart2,
   Plus,
   Trash2,
-  Wand2,
-  AlertTriangle,
-  BookOpen,
-  PenLine,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -99,9 +83,6 @@ export function Composer({
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [attachedVideo, setAttachedVideo] = useState<string | null>(null)
   const [videoFile, setVideoFile] = useState<File | null>(null)
-
-  // Privacy Shield
-  const [showPrivacyShield, setShowPrivacyShield] = useState(false)
 
   // Poll state
   const [showPollBuilder, setShowPollBuilder] = useState(false)
@@ -176,22 +157,6 @@ export function Composer({
 
   const detectedThreads = extractThreads(content)
 
-  // Live privacy scan result
-  const privacyResult: PrivacyScanResult = useMemo(() => {
-    return scanPrivacy(`${articleTitle} ${content}`)
-  }, [articleTitle, content])
-
-  // Estimated reading time & writing stats
-  const estimatedReadTime = useMemo(() => {
-    const words = content.trim().split(/\s+/).filter(Boolean).length
-    return Math.max(1, Math.ceil(words / 200))
-  }, [content])
-
-  const charCount = content.length
-  const wordCount = useMemo(() => {
-    return content.trim().split(/\s+/).filter(Boolean).length
-  }, [content])
-
   // Open modal in specific mode
   const handleOpenModal = useCallback((mode: ComposerMode = 'post') => {
     setActiveMode(mode)
@@ -212,49 +177,8 @@ export function Composer({
   // Close modal and restore focus
   const handleCloseModal = useCallback(() => {
     setIsOpen(false)
-    setShowPrivacyShield(false)
     triggerButtonRef.current?.focus()
   }, [])
-
-  // Listen for Escape and Cmd+Enter keys
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        handleCloseModal()
-      }
-    }
-    if (isOpen) {
-      window.addEventListener('keydown', handleKeyDown)
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-    }
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-      document.body.style.overflow = ''
-    }
-  }, [isOpen, handleCloseModal])
-
-  // Formatting Handlers
-  const handleInsertCode = () => {
-    setContent(prev => `${prev}\n\`\`\`\n// Add your code or reflection snippet here\n\`\`\`\n`)
-  }
-
-  const handleInsertBold = () => {
-    setContent(prev => `${prev} **bold text** `)
-  }
-
-  const handleInsertItalic = () => {
-    setContent(prev => `${prev} *italic text* `)
-  }
-
-  const handleInsertHeading = () => {
-    setContent(prev => `${prev}\n\n## Section Heading\n`)
-  }
-
-  const handleInsertQuote = () => {
-    setContent(prev => `${prev}\n\n> Key lesson or quote\n`)
-  }
 
   // Media Selection Handlers
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -330,16 +254,6 @@ export function Composer({
     if (articleCoverInputRef.current) {
       articleCoverInputRef.current.value = ''
     }
-  }
-
-  const handleApplyAnonymize = () => {
-    const { sanitizedText, changesCount } = anonymizeContent(content)
-    setContent(sanitizedText)
-    if (articleTitle) {
-      const { sanitizedText: cleanTitle } = anonymizeContent(articleTitle)
-      setArticleTitle(cleanTitle)
-    }
-    toast.success(`De-identified ${changesCount} potential identifying markers!`)
   }
 
   // Poll Option Handlers
@@ -604,7 +518,6 @@ export function Composer({
       setShowPollBuilder(false)
       setPollQuestion('')
       setPollOptions(['', ''])
-      setShowPrivacyShield(false)
       handleCloseModal()
 
       toast.success(isArticle ? 'Article published successfully!' : 'Your post has been shared!')
@@ -746,7 +659,7 @@ export function Composer({
       />
 
       {/* ========================================================================= */}
-      {/* 2. EXPANDED COMPOSER MODAL DIALOG                                         */}
+      {/* 2. EXPANDED COMPOSER MODAL DIALOG (Matches LinkedIn Modal Screenshot)     */}
       {/* ========================================================================= */}
       {isOpen && (
         <div
@@ -758,44 +671,71 @@ export function Composer({
           aria-modal="true"
           aria-labelledby="composer-modal-title"
         >
-          <div className="relative w-full max-w-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden animate-in zoom-in-95 duration-150">
+          <div className="relative w-full max-w-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col min-h-[440px] max-h-[92vh] overflow-hidden animate-in zoom-in-95 duration-150">
             
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-100 dark:border-gray-800 shrink-0">
-              <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-start justify-between p-4 sm:p-5 pb-2 shrink-0">
+              <div className="flex items-center gap-3.5 min-w-0">
                 <Avatar
                   src={activeAvatarUrl || undefined}
                   fallbackName={activeDisplayName}
-                  className="h-10 w-10 shrink-0 border border-gray-200 dark:border-gray-700"
+                  className="h-12 w-12 shrink-0 border border-gray-200 dark:border-gray-700 shadow-2xs"
                 />
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-sm text-gray-950 dark:text-white truncate">
-                      {activeDisplayName}
-                    </span>
-                    {isAnonymous && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shrink-0">
-                        <UserCircle className="h-3 w-3" />
-                        Pseudonym
-                      </span>
-                    )}
-                  </div>
+                <div className="min-w-0 space-y-1">
+                  {/* Name with selector dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 font-bold text-base text-gray-950 dark:text-white hover:text-primary transition-colors cursor-pointer group"
+                      >
+                        <span className="truncate">{activeDisplayName}</span>
+                        <ChevronDown className="h-4 w-4 text-gray-500 group-hover:text-primary transition-colors shrink-0" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56 z-50">
+                      <DropdownMenuLabel className="text-xs">Post as</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        onSelect={() => setVisibility('public')}
+                        className="flex items-center gap-2 cursor-pointer py-2 font-medium text-xs"
+                      >
+                        <Globe className="h-4 w-4 text-primary" />
+                        <span>{userDisplayName} (Public)</span>
+                      </DropdownMenuItem>
+                      {pseudonym && (
+                        <DropdownMenuItem
+                          onSelect={() => setVisibility('pseudonymous')}
+                          className="flex items-center gap-2 cursor-pointer py-2 font-medium text-xs"
+                        >
+                          <UserCircle className="h-4 w-4 text-amber-600" />
+                          <span>@{pseudonym.display_name} (Alias)</span>
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
 
-                  {/* Visibility Dropdown Selector */}
-                  <div className="flex items-center gap-2 mt-0.5">
+                  {/* Pills Row: 'Post to Anyone' & 'Comments: Anyone' */}
+                  <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                    {/* 1. Post to Anyone Pill */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 border border-gray-200/60 dark:border-gray-700 transition-colors"
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 transition-colors cursor-pointer border border-gray-200/80 dark:border-gray-700/80"
                         >
-                          <OptionIcon className="h-3 w-3 text-primary" />
-                          <span>{selectedOption.label}</span>
-                          <ChevronDown className="h-3 w-3 opacity-60" />
+                          <OptionIcon className="h-3.5 w-3.5 text-gray-700 dark:text-gray-300" />
+                          <span>
+                            {visibility === 'public'
+                              ? 'Post to Anyone'
+                              : visibility === 'pseudonymous'
+                              ? 'Post as Alias'
+                              : 'Post to Circle'}
+                          </span>
+                          <ChevronDown className="h-3 w-3 text-gray-500" />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-64 z-50">
-                        <DropdownMenuLabel className="text-xs">Post Visibility & Identity</DropdownMenuLabel>
+                        <DropdownMenuLabel className="text-xs">Who can see this post?</DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         {VISIBILITY_OPTIONS.map((opt) => {
                           const Icon = opt.icon
@@ -805,7 +745,7 @@ export function Composer({
                               onSelect={() => setVisibility(opt.value)}
                               className="flex flex-col items-start gap-0.5 cursor-pointer py-2"
                             >
-                              <div className="flex items-center gap-2 font-medium text-xs">
+                              <div className="flex items-center gap-2 font-semibold text-xs">
                                 <Icon className="h-3.5 w-3.5 text-primary" />
                                 {opt.label}
                               </div>
@@ -821,7 +761,7 @@ export function Composer({
                       <select
                         value={selectedCircle}
                         onChange={(e) => setSelectedCircle(e.target.value)}
-                        className="h-6 rounded-full border border-gray-200 bg-white px-2 text-xs font-medium text-gray-800 focus:border-primary focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+                        className="h-7 rounded-full border border-gray-200 bg-white px-2.5 text-xs font-medium text-gray-800 focus:border-primary focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
                       >
                         <option value="">Choose Circle...</option>
                         {circles.map((circle) => (
@@ -831,152 +771,66 @@ export function Composer({
                         ))}
                       </select>
                     )}
+
+                    {/* 2. Comments: Anyone Pill */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 transition-colors cursor-pointer border border-gray-200/80 dark:border-gray-700/80"
+                        >
+                          <svg className="h-3.5 w-3.5 text-gray-700 dark:text-gray-300 fill-current" viewBox="0 0 24 24">
+                            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
+                          </svg>
+                          <span>Comments: Anyone</span>
+                          <ChevronDown className="h-3 w-3 text-gray-500" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-56 z-50">
+                        <DropdownMenuLabel className="text-xs">Who can comment?</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="cursor-pointer font-medium text-xs">
+                          Anyone
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="cursor-pointer font-medium text-xs">
+                          Connections & Circles only
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               </div>
 
-              {/* Right Header Actions: Privacy Scanner Pill + Close Button */}
-              <div className="flex items-center gap-2">
-                {/* Privacy Shield Pill */}
-                {content.trim().length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setShowPrivacyShield(!showPrivacyShield)}
-                    className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
-                      privacyResult.status === 'safe'
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-                        : privacyResult.status === 'warning'
-                        ? 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
-                        : 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
-                    }`}
-                    title="Toggle Privacy Shield Analysis"
-                  >
-                    {privacyResult.status === 'safe' ? (
-                      <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                    ) : (
-                      <ShieldAlert className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 animate-pulse" />
-                    )}
-                    <span>Shield: {privacyResult.score}%</span>
-                  </button>
-                )}
-
-                {/* Close Button */}
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="p-1.5 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:text-gray-200 dark:hover:bg-gray-800 transition-colors"
-                  aria-label="Close composer"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
+              {/* Close Button */}
+              <button
+                type="button"
+                onClick={handleCloseModal}
+                className="p-2 rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                aria-label="Close composer"
+              >
+                <X className="h-6 w-6" />
+              </button>
             </div>
-
-            {/* Mode Switcher Tabs (Post vs Article) */}
-            <div className="flex items-center justify-between px-4 sm:px-6 py-2.5 border-b border-gray-100 dark:border-gray-800/80 bg-gray-50/60 dark:bg-gray-800/30">
-              <div className="flex items-center gap-1.5 p-0.5 bg-gray-200/60 dark:bg-gray-800/80 rounded-xl">
-                <button
-                  type="button"
-                  onClick={() => setActiveMode('post')}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer ${
-                    activeMode !== 'article'
-                      ? 'bg-white dark:bg-gray-900 text-gray-950 dark:text-white shadow-2xs'
-                      : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
-                  }`}
-                >
-                  <PenLine className="h-3.5 w-3.5 text-primary" />
-                  <span>Short Post</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveMode('article')}
-                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 cursor-pointer ${
-                    activeMode === 'article'
-                      ? 'bg-white dark:bg-gray-900 text-amber-700 dark:text-amber-300 shadow-2xs'
-                      : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
-                  }`}
-                >
-                  <FileText className="h-3.5 w-3.5 text-amber-500" />
-                  <span>Long-form Article</span>
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {activeMode === 'article' ? (
-                  <span className="text-[11px] font-medium text-gray-400 flex items-center gap-1">
-                    <BookOpen className="h-3 w-3" />
-                    {estimatedReadTime} min read
-                  </span>
-                ) : (
-                  <div className="flex items-center gap-2 text-[11px] text-gray-400">
-                    <span>{wordCount} {wordCount === 1 ? 'word' : 'words'}</span>
-                    <span className="h-1 w-1 rounded-full bg-gray-300 dark:bg-gray-600" />
-                    <span>{charCount} chars</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Privacy Shield Drawer */}
-            {showPrivacyShield && privacyResult.risks.length > 0 && (
-              <div className="mx-4 mt-3 p-3.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/80 space-y-2.5 animate-in fade-in shrink-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
-                    <AlertTriangle className="h-4 w-4 text-amber-600" />
-                    Privacy Shield: {privacyResult.risks.length} identifying marker(s) detected
-                  </span>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={handleApplyAnonymize}
-                    className="h-7 text-xs gap-1.5 bg-white text-amber-900 border-amber-300 hover:bg-amber-100 dark:bg-gray-900 dark:text-amber-200 dark:border-amber-700 cursor-pointer"
-                  >
-                    <Wand2 className="h-3 w-3 text-amber-600" />
-                    1-Click De-Identify
-                  </Button>
-                </div>
-
-                <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1 text-xs">
-                  {privacyResult.risks.map((risk, i) => (
-                    <div key={i} className="flex items-start justify-between gap-2 p-2 rounded-lg bg-white/90 dark:bg-gray-900/90 border border-amber-200/60 dark:border-amber-900/40">
-                      <div>
-                        <span className="font-semibold text-gray-900 dark:text-gray-100">{risk.label}: </span>
-                        <span className="text-gray-600 dark:text-gray-300">&ldquo;{risk.matchedText}&rdquo;</span>
-                        <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-0.5">💡 {risk.suggestion}</p>
-                      </div>
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] uppercase font-bold shrink-0 ${
-                        risk.severity === 'high' ? 'bg-rose-100 text-rose-800' : risk.severity === 'medium' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {risk.severity}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Scrollable Content Body */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-              {/* ARTICLE MODE: Headline & Cover Photo */}
+            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 space-y-4">
+              {/* Article Mode Cover & Title if active */}
               {activeMode === 'article' && (
-                <div className="space-y-3 pb-2 border-b border-gray-100 dark:border-gray-800 animate-in fade-in">
-                  {/* Article Cover Image */}
+                <div className="space-y-3 pb-2 border-b border-gray-100 dark:border-gray-800">
                   {articleCover ? (
-                    <div className="relative rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 max-h-56">
+                    <div className="relative rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 max-h-52">
                       <Image
                         src={articleCover}
                         alt="Article Cover"
                         width={800}
                         height={300}
-                        className="w-full max-h-56 object-cover"
+                        className="w-full max-h-52 object-cover"
                         unoptimized
                       />
                       <button
                         type="button"
                         onClick={handleRemoveArticleCover}
                         className="absolute top-2 right-2 p-1.5 rounded-full bg-gray-950/80 text-white hover:bg-gray-950 transition-colors cursor-pointer"
-                        title="Remove cover"
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -985,35 +839,27 @@ export function Composer({
                     <button
                       type="button"
                       onClick={() => articleCoverInputRef.current?.click()}
-                      className="w-full py-6 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-800 hover:border-amber-400/80 dark:hover:border-amber-500/80 bg-gray-50/50 dark:bg-gray-800/20 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200 transition-colors flex flex-col items-center justify-center gap-1.5 cursor-pointer"
+                      className="w-full py-4 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 hover:border-amber-400 text-gray-500 hover:text-gray-900 dark:text-gray-400 transition-colors flex items-center justify-center gap-2 cursor-pointer text-xs font-semibold"
                     >
-                      <ImageIcon className="h-6 w-6 text-amber-500" />
-                      <span className="text-xs font-semibold">Add a cover image</span>
-                      <span className="text-[11px] text-gray-400">PNG, JPG, WebP up to 5MB</span>
+                      <ImageIcon className="h-4 w-4 text-amber-500" />
+                      <span>Add cover photo</span>
                     </button>
                   )}
 
-                  {/* Article Headline Input */}
                   <Input
-                    placeholder="Article Headline / Title..."
+                    placeholder="Article Title..."
                     value={articleTitle}
                     onChange={(e) => setArticleTitle(e.target.value)}
-                    className="text-lg sm:text-xl font-bold border-none px-0 focus-visible:ring-0 placeholder:text-gray-400 dark:placeholder:text-gray-500 bg-transparent h-auto py-1 shadow-none"
+                    className="text-lg font-bold border-none px-0 focus-visible:ring-0 placeholder:text-gray-400 dark:placeholder:text-gray-500 bg-transparent h-auto py-1 shadow-none"
                   />
                 </div>
               )}
 
-              {/* Main Text Editor (Short Post / Article) */}
-              <div className="relative min-h-[150px]">
+              {/* Main Text Area matching 'Share your thoughts ...' */}
+              <div className="relative min-h-[160px] sm:min-h-[200px]">
                 <Textarea
                   ref={textareaRef}
-                  placeholder={
-                    activeMode === 'article'
-                      ? 'Write your detailed story, analysis, career advice, or deep-dive article here...'
-                      : isAnonymous
-                      ? 'Share candid experiences, unfiltered compensation details, or what really happened without your name attached...'
-                      : 'What are you thinking about? Share real stories, lessons, or reflections...'
-                  }
+                  placeholder="Share your thoughts ..."
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   onKeyDown={(e) => {
@@ -1024,15 +870,13 @@ export function Composer({
                       }
                     }
                   }}
-                  className={`w-full resize-none border-none p-0 focus-visible:ring-0 text-[15px] sm:text-base leading-relaxed text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 bg-transparent shadow-none selection:bg-primary/20 ${
-                    activeMode === 'article' ? 'min-h-[220px]' : 'min-h-[150px]'
-                  }`}
+                  className="w-full resize-none border-none p-0 focus-visible:ring-0 text-base sm:text-lg leading-relaxed text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 bg-transparent shadow-none selection:bg-primary/20 min-h-[160px] sm:min-h-[200px]"
                 />
               </div>
 
-              {/* Attached Image Preview (Standard Mode) */}
+              {/* Attached Image Preview */}
               {attachedImage && (
-                <div className="relative inline-block rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 animate-in fade-in zoom-in-95">
+                <div className="relative inline-block rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
                   <Image
                     src={attachedImage}
                     alt="Upload preview"
@@ -1045,7 +889,6 @@ export function Composer({
                     type="button"
                     onClick={handleRemoveImage}
                     className="absolute top-2 right-2 p-1.5 rounded-full bg-gray-950/80 text-white hover:bg-gray-950 transition-colors cursor-pointer"
-                    title="Remove image"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -1054,7 +897,7 @@ export function Composer({
 
               {/* Attached Video Preview */}
               {attachedVideo && (
-                <div className="relative rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-black max-h-60 animate-in fade-in zoom-in-95">
+                <div className="relative rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-black max-h-60">
                   <video
                     src={attachedVideo}
                     controls
@@ -1064,7 +907,6 @@ export function Composer({
                     type="button"
                     onClick={handleRemoveVideo}
                     className="absolute top-2 right-2 p-1.5 rounded-full bg-gray-950/80 text-white hover:bg-gray-950 transition-colors cursor-pointer"
-                    title="Remove video"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -1073,11 +915,11 @@ export function Composer({
 
               {/* Poll Builder Box */}
               {showPollBuilder && (
-                <div className="p-4 rounded-2xl bg-gray-50/80 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 space-y-3 animate-in fade-in zoom-in-95">
+                <div className="p-4 rounded-2xl bg-gray-50/80 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
                       <BarChart2 className="h-4 w-4 text-indigo-500" />
-                      Anonymous Community Poll
+                      Community Poll
                     </span>
                     <button
                       type="button"
@@ -1089,7 +931,7 @@ export function Composer({
                   </div>
 
                   <Input
-                    placeholder="Ask a question (e.g. How long did your job hunt take?)"
+                    placeholder="Ask a question..."
                     value={pollQuestion}
                     onChange={(e) => setPollQuestion(e.target.value)}
                     className="h-9 text-xs bg-white dark:bg-gray-900"
@@ -1099,7 +941,7 @@ export function Composer({
                     {pollOptions.map((opt, idx) => (
                       <div key={idx} className="flex items-center gap-2">
                         <Input
-                          placeholder={`Option ${idx + 1} (e.g. ${idx === 0 ? 'Less than 1 month' : idx === 1 ? '1 - 3 months' : '4+ months'})`}
+                          placeholder={`Option ${idx + 1}`}
                           value={opt}
                           onChange={(e) => handlePollOptionChange(idx, e.target.value)}
                           className="h-8 text-xs bg-white dark:bg-gray-900"
@@ -1109,7 +951,6 @@ export function Composer({
                             type="button"
                             onClick={() => handleRemovePollOption(idx)}
                             className="p-1.5 text-gray-400 hover:text-red-500 transition-colors shrink-0 cursor-pointer"
-                            title="Remove option"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -1130,150 +971,131 @@ export function Composer({
                   )}
                 </div>
               )}
-
-              {/* Detected Thread Banner */}
-              {detectedThreads.length > 0 && (
-                <div className="flex items-center gap-1.5 text-xs text-primary font-medium bg-primary/5 py-1 px-2.5 rounded-lg w-fit border border-primary/15 animate-in fade-in">
-                  <Hash className="h-3.5 w-3.5 shrink-0" />
-                  <span>Publishing into: {detectedThreads.map(t => `#${t}`).join(', ')}</span>
-                </div>
-              )}
             </div>
 
-            {/* Modal Footer Action Bar */}
-            <div className="p-3.5 sm:p-4.5 border-t border-gray-100 dark:border-gray-800 bg-gray-50/60 dark:bg-gray-900/80 flex flex-wrap items-center justify-between gap-3 shrink-0">
-              {/* Left Media & Formatting Tools */}
-              <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
-                {/* Photo Picker */}
+            {/* Modal Bottom Bar Matching Screenshot */}
+            <div className="px-4 sm:px-6 py-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-3 shrink-0">
+              {/* Left Toolbar Icons: Emoji, Photo, Award, Plus */}
+              <div className="flex items-center gap-1 sm:gap-2">
+                {/* 1. Emoji / Smile Icon */}
+                <button
+                  type="button"
+                  onClick={() => setContent(prev => `${prev} 😊`)}
+                  className="p-2 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                  title="Add Emoji"
+                >
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                    <line x1="9" y1="9" x2="9.01" y2="9" />
+                    <line x1="15" y1="9" x2="15.01" y2="9" />
+                  </svg>
+                </button>
+
+                {/* 2. Photo Icon */}
                 <button
                   type="button"
                   onClick={() => imageInputRef.current?.click()}
-                  className={`p-2 rounded-xl text-xs transition-all duration-150 flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95 ${
+                  className={`p-2 rounded-full transition-colors cursor-pointer ${
                     attachedImage
-                      ? 'bg-blue-50 text-blue-600 border border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 shadow-2xs'
-                      : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800'
+                      ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800'
                   }`}
-                  title="Attach Photo"
+                  title="Add Image"
                 >
-                  <ImageIcon className="h-4 w-4 text-blue-500" />
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                    <circle cx="9" cy="9" r="2" />
+                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                  </svg>
                 </button>
 
-                {/* Video Picker */}
+                {/* 3. Award / Celebrate Badge Icon */}
                 <button
                   type="button"
-                  onClick={() => videoInputRef.current?.click()}
-                  className={`p-2 rounded-xl text-xs transition-all duration-150 flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95 ${
-                    attachedVideo
-                      ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 shadow-2xs'
-                      : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800'
-                  }`}
-                  title="Attach Video"
+                  onClick={() => {
+                    setContent(prev => `${prev}\n\n🏆 Celebrating a milestone! `)
+                  }}
+                  className="p-2 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                  title="Celebrate an occasion"
                 >
-                  <VideoIcon className="h-4 w-4 text-emerald-500" />
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2l2.4 4.8 5.3.8-3.8 3.7.9 5.3-4.8-2.5-4.8 2.5.9-5.3-3.8-3.7 5.3-.8L12 2z" />
+                  </svg>
                 </button>
 
-                {/* Poll Trigger */}
-                <button
-                  type="button"
-                  onClick={() => setShowPollBuilder(!showPollBuilder)}
-                  className={`p-2 rounded-xl text-xs transition-all duration-150 flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95 ${
-                    showPollBuilder
-                      ? 'bg-indigo-50 text-indigo-600 border border-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 shadow-2xs'
-                      : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800'
-                  }`}
-                  title="Add Poll"
-                >
-                  <BarChart2 className="h-4 w-4 text-indigo-500" />
-                </button>
-
-                <div className="h-4 w-[1px] bg-gray-200 dark:bg-gray-700 mx-1 hidden sm:block" />
-
-                {/* Formatting: Bold */}
-                <button
-                  type="button"
-                  onClick={handleInsertBold}
-                  className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer"
-                  title="Bold (**text**)"
-                >
-                  <Bold className="h-4 w-4" />
-                </button>
-
-                {/* Formatting: Italic */}
-                <button
-                  type="button"
-                  onClick={handleInsertItalic}
-                  className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer"
-                  title="Italic (*text*)"
-                >
-                  <Italic className="h-4 w-4" />
-                </button>
-
-                {/* Formatting: Heading */}
-                <button
-                  type="button"
-                  onClick={handleInsertHeading}
-                  className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer"
-                  title="Heading (## Section)"
-                >
-                  <Heading2 className="h-4 w-4" />
-                </button>
-
-                {/* Formatting: Quote */}
-                <button
-                  type="button"
-                  onClick={handleInsertQuote}
-                  className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer"
-                  title="Quote (> quote)"
-                >
-                  <Quote className="h-4 w-4" />
-                </button>
-
-                {/* Formatting: Code */}
-                <button
-                  type="button"
-                  onClick={handleInsertCode}
-                  className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 transition-all duration-150 hover:scale-105 active:scale-95 cursor-pointer"
-                  title="Code snippet (```code```)"
-                >
-                  <Code className="h-4 w-4" />
-                </button>
+                {/* 4. Plus / More Icon (Poll, Video, Article) */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="p-2 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                      title="More options"
+                    >
+                      <Plus className="h-5 w-5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-48 z-50">
+                    <DropdownMenuItem
+                      onSelect={() => videoInputRef.current?.click()}
+                      className="flex items-center gap-2 cursor-pointer text-xs font-semibold py-2"
+                    >
+                      <VideoIcon className="h-4 w-4 text-emerald-600" />
+                      <span>Add Video</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => setShowPollBuilder(true)}
+                      className="flex items-center gap-2 cursor-pointer text-xs font-semibold py-2"
+                    >
+                      <BarChart2 className="h-4 w-4 text-indigo-500" />
+                      <span>Create Poll</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onSelect={() => setActiveMode(prev => prev === 'article' ? 'post' : 'article')}
+                      className="flex items-center gap-2 cursor-pointer text-xs font-semibold py-2"
+                    >
+                      <FileText className="h-4 w-4 text-amber-500" />
+                      <span>{activeMode === 'article' ? 'Switch to Post' : 'Write Article'}</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
-              {/* Right Side: Keyboard Hint + Draft & Post / Publish */}
-              <div className="flex items-center gap-2.5 ml-auto">
-                <span className="hidden sm:inline-flex items-center gap-1 text-[11px] text-gray-400 font-medium select-none pr-1">
-                  <kbd className="px-1.5 py-0.5 rounded border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-[10px] font-mono">⌘↵</kbd> to post
-                </span>
-
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleSubmit(true)}
-                  disabled={isSubmitting || (!content.trim() && !attachedImage && !attachedVideo)}
-                  className="h-9 text-xs text-gray-500 hover:text-gray-900 dark:hover:text-white transition-all active:scale-95 cursor-pointer"
+              {/* Right Side: Clock Schedule icon + 'Post' button */}
+              <div className="flex items-center gap-3">
+                {/* Schedule / Clock Button */}
+                <button
+                  type="button"
+                  onClick={() => toast.info('Post scheduling is coming soon!')}
+                  className="p-2 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                  title="Schedule for later"
                 >
-                  <Save className="mr-1.5 h-3.5 w-3.5" />
-                  Draft
-                </Button>
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                </button>
 
-                <Button
-                  size="sm"
+                {/* Post Button */}
+                <button
+                  type="button"
                   onClick={() => handleSubmit(false)}
                   disabled={isSubmitting || !hasValidContent}
-                  className="h-9 gap-1.5 text-xs font-semibold px-5 rounded-full shadow-xs transition-all duration-200 hover:shadow-md active:scale-95 cursor-pointer"
+                  className={`h-9 px-6 rounded-full text-sm font-bold transition-all duration-150 cursor-pointer ${
+                    hasValidContent && !isSubmitting
+                      ? 'bg-[#0a66c2] text-white hover:bg-[#004182] shadow-xs active:scale-95'
+                      : 'bg-gray-200 text-gray-400 dark:bg-gray-800 dark:text-gray-600 cursor-not-allowed'
+                  }`}
                 >
                   {isSubmitting ? (
-                    <>
+                    <span className="flex items-center gap-1.5">
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Publishing...
-                    </>
+                      Posting...
+                    </span>
                   ) : (
-                    <>
-                      {activeMode === 'article' ? 'Publish Article' : 'Post'}
-                      <Send className="h-3.5 w-3.5 ml-0.5" />
-                    </>
+                    <span>Post</span>
                   )}
-                </Button>
+                </button>
               </div>
             </div>
 
