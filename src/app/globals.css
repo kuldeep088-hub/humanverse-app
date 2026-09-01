@@ -143,21 +143,77 @@ body {
 }
 
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes modal-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(16px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.015) translateY(-2px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes pop {
+  0% { transform: scale(0.95); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes bell-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  20%, 60% { transform: rotate(12deg); }
+  40%, 80% { transform: rotate(-12deg); }
+}
+
 .animate-fade-in {
-  animation: fade-in var(--duration-fast) var(--ease-smooth);
+  animation: fade-in var(--duration-fast) var(--ease-smooth) forwards;
 }
 
 .animate-slide-up {
-  animation: slide-up var(--duration-base) var(--ease-smooth);
+  animation: slide-up 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-modal-pop {
+  animation: modal-pop 320ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-pop {
+  animation: pop 250ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.animate-bell-wiggle:hover {
+  animation: bell-wiggle 600ms ease-in-out;
+}
+
+.card-hover-effect {
+  transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 250ms cubic-bezier(0.16, 1, 0.3, 1), border-color 200ms ease;
+}
+
+.card-hover-effect:hover {
+  transform: translateY(-2px);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in,
-  .animate-slide-up {
+  .animate-slide-up,
+  .animate-modal-pop,
+  .animate-pop,
+  .card-hover-effect:hover {
     animation: none;
+    transform: none;
   }
 }

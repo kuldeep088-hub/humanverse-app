@@ -252,14 +252,14 @@ export function PostComponent({
   const helpTagInfo = post.help_type ? HELP_TAG_CONFIG[post.help_type] : null
 
   return (
-    <article className="group rounded-2xl border border-gray-200/90 bg-white p-4 sm:p-5 shadow-xs transition-all hover:border-gray-300 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700">
+    <article className="card-hover-effect group rounded-2xl border border-gray-200/90 bg-white p-4 sm:p-5 shadow-xs transition-all duration-300 hover:border-gray-300 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700">
       <div className="flex items-start gap-3 sm:gap-3.5">
         {/* Author Avatar */}
-        <Link href={isPseudonymous ? '#' : `/app/profile/${post.author_id}`} className="shrink-0">
+        <Link href={isPseudonymous ? '#' : `/app/profile/${post.author_id}`} className="shrink-0 group/av">
           <Avatar
             src={authorAvatar || undefined}
             fallbackName={authorName}
-            className="h-11 w-11 sm:h-12 sm:w-12 shrink-0 border border-gray-200 dark:border-gray-700 shadow-2xs hover:opacity-95 transition-opacity"
+            className="h-11 w-11 sm:h-12 sm:w-12 shrink-0 border border-gray-200 dark:border-gray-700 shadow-2xs transition-transform duration-200 group-hover/av:scale-105"
           />
         </Link>
 
@@ -513,13 +513,13 @@ export function PostComponent({
                     type="button"
                     onClick={() => handleReact(type)}
                     className={cn(
-                      'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all active:scale-95 border',
+                      'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 hover:scale-105 active:scale-90 border cursor-pointer',
                       isActive
-                        ? 'bg-primary text-primary-foreground border-primary shadow-xs font-semibold'
+                        ? 'bg-primary text-primary-foreground border-primary shadow-xs font-semibold animate-pop'
                         : 'bg-gray-50 text-gray-600 border-gray-200/60 hover:bg-gray-100 hover:text-gray-900 dark:bg-gray-800/80 dark:text-gray-300 dark:border-gray-700/60 dark:hover:bg-gray-800'
                     )}
                   >
-                    <Icon className="h-3.5 w-3.5 shrink-0" />
+                    <Icon className="h-3.5 w-3.5 shrink-0 transition-transform duration-200 group-hover:scale-110" />
                     <span>{label}</span>
                     {count > 0 && <span className="ml-0.5 text-[11px] font-bold">{count}</span>}
                   </button>

@@ -663,7 +663,7 @@ export function Composer({
       {/* ========================================================================= */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-in fade-in duration-200"
+          className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-fade-in"
           onClick={(e) => {
             if (e.target === e.currentTarget) handleCloseModal()
           }}
@@ -671,7 +671,7 @@ export function Composer({
           aria-modal="true"
           aria-labelledby="composer-modal-title"
         >
-          <div className="relative w-full max-w-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col min-h-[440px] max-h-[92vh] overflow-hidden animate-in zoom-in-95 duration-150">
+          <div className="relative w-full max-w-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col min-h-[440px] max-h-[92vh] overflow-hidden animate-modal-pop">
             
             {/* Modal Header */}
             <div className="flex items-start justify-between p-4 sm:p-5 pb-2 shrink-0">
@@ -679,7 +679,7 @@ export function Composer({
                 <Avatar
                   src={activeAvatarUrl || undefined}
                   fallbackName={activeDisplayName}
-                  className="h-12 w-12 shrink-0 border border-gray-200 dark:border-gray-700 shadow-2xs"
+                  className="h-12 w-12 shrink-0 border border-gray-200 dark:border-gray-700 shadow-2xs transition-transform duration-200 hover:scale-105"
                 />
                 <div className="min-w-0 space-y-1">
                   {/* Name with selector dropdown */}
@@ -981,10 +981,10 @@ export function Composer({
                 <button
                   type="button"
                   onClick={() => setContent(prev => `${prev} 😊`)}
-                  className="p-2 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                  className="p-2 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-all duration-200 hover:scale-115 active:scale-90 cursor-pointer"
                   title="Add Emoji"
                 >
-                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg className="h-5 w-5 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10" />
                     <path d="M8 14s1.5 2 4 2 4-2 4-2" />
                     <line x1="9" y1="9" x2="9.01" y2="9" />
@@ -996,14 +996,14 @@ export function Composer({
                 <button
                   type="button"
                   onClick={() => imageInputRef.current?.click()}
-                  className={`p-2 rounded-full transition-colors cursor-pointer ${
+                  className={`p-2 rounded-full transition-all duration-200 hover:scale-115 active:scale-90 cursor-pointer ${
                     attachedImage
-                      ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300'
+                      ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300 shadow-xs'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800'
                   }`}
                   title="Add Image"
                 >
-                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg className="h-5 w-5 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
                     <circle cx="9" cy="9" r="2" />
                     <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
@@ -1016,10 +1016,10 @@ export function Composer({
                   onClick={() => {
                     setContent(prev => `${prev}\n\n🏆 Celebrating a milestone! `)
                   }}
-                  className="p-2 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                  className="p-2 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-all duration-200 hover:scale-115 active:scale-90 cursor-pointer"
                   title="Celebrate an occasion"
                 >
-                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg className="h-5 w-5 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 2l2.4 4.8 5.3.8-3.8 3.7.9 5.3-4.8-2.5-4.8 2.5.9-5.3-3.8-3.7 5.3-.8L12 2z" />
                   </svg>
                 </button>
@@ -1029,30 +1029,30 @@ export function Composer({
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
-                      className="p-2 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                      className="p-2 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-all duration-200 hover:scale-115 active:scale-90 cursor-pointer"
                       title="More options"
                     >
-                      <Plus className="h-5 w-5" />
+                      <Plus className="h-5 w-5 transition-transform duration-200" />
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-48 z-50">
+                  <DropdownMenuContent align="start" className="w-48 z-50 animate-in zoom-in-95 duration-150">
                     <DropdownMenuItem
                       onSelect={() => videoInputRef.current?.click()}
-                      className="flex items-center gap-2 cursor-pointer text-xs font-semibold py-2"
+                      className="flex items-center gap-2 cursor-pointer text-xs font-semibold py-2 transition-colors"
                     >
                       <VideoIcon className="h-4 w-4 text-emerald-600" />
                       <span>Add Video</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onSelect={() => setShowPollBuilder(true)}
-                      className="flex items-center gap-2 cursor-pointer text-xs font-semibold py-2"
+                      className="flex items-center gap-2 cursor-pointer text-xs font-semibold py-2 transition-colors"
                     >
                       <BarChart2 className="h-4 w-4 text-indigo-500" />
                       <span>Create Poll</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onSelect={() => setActiveMode(prev => prev === 'article' ? 'post' : 'article')}
-                      className="flex items-center gap-2 cursor-pointer text-xs font-semibold py-2"
+                      className="flex items-center gap-2 cursor-pointer text-xs font-semibold py-2 transition-colors"
                     >
                       <FileText className="h-4 w-4 text-amber-500" />
                       <span>{activeMode === 'article' ? 'Switch to Post' : 'Write Article'}</span>
@@ -1067,10 +1067,10 @@ export function Composer({
                 <button
                   type="button"
                   onClick={() => toast.info('Post scheduling is coming soon!')}
-                  className="p-2 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                  className="p-2 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-all duration-200 hover:scale-115 active:scale-90 cursor-pointer"
                   title="Schedule for later"
                 >
-                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg className="h-5 w-5 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10" />
                     <polyline points="12 6 12 12 16 14" />
                   </svg>
@@ -1081,9 +1081,9 @@ export function Composer({
                   type="button"
                   onClick={() => handleSubmit(false)}
                   disabled={isSubmitting || !hasValidContent}
-                  className={`h-9 px-6 rounded-full text-sm font-bold transition-all duration-150 cursor-pointer ${
+                  className={`h-9 px-6 rounded-full text-sm font-bold transition-all duration-200 cursor-pointer ${
                     hasValidContent && !isSubmitting
-                      ? 'bg-[#0a66c2] text-white hover:bg-[#004182] shadow-xs active:scale-95'
+                      ? 'bg-[#0a66c2] text-white hover:bg-[#004182] shadow-sm hover:shadow-md active:scale-95'
                       : 'bg-gray-200 text-gray-400 dark:bg-gray-800 dark:text-gray-600 cursor-not-allowed'
                   }`}
                 >

@@ -101,13 +101,13 @@ export default async function AppLayout({ children }: AppLayoutProps) {
             {/* Desktop Unified Search */}
             <Link
               href="/app/search"
-              className="relative hidden sm:flex h-10 w-64 lg:w-72"
+              className="relative hidden sm:flex h-10 w-64 lg:w-72 transition-all duration-300 hover:w-72 lg:hover:w-80 group"
             >
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 group-hover:text-primary transition-colors" />
               <input
                 type="search"
                 placeholder="Search posts, threads, people..."
-                className="h-full w-full rounded-xl border border-gray-200 bg-gray-50/80 px-10 py-2 text-xs placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-800 dark:bg-gray-900 dark:placeholder:text-gray-500 cursor-pointer"
+                className="h-full w-full rounded-xl border border-gray-200 bg-gray-50/80 px-10 py-2 text-xs placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:border-gray-800 dark:bg-gray-900 dark:placeholder:text-gray-500 cursor-pointer transition-all group-hover:border-primary/40 group-hover:bg-white dark:group-hover:bg-gray-800"
                 aria-label="Search"
                 readOnly
               />
@@ -116,7 +116,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
             {/* Mobile Search Icon Button */}
             <Link
               href="/app/search"
-              className="sm:hidden relative p-2 text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-white"
+              className="sm:hidden relative p-2 text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-white transition-transform hover:scale-110 active:scale-95"
               aria-label="Search"
             >
               <Search className="h-5 w-5" />
@@ -125,7 +125,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
             {/* Direct Messages Icon Button */}
             <Link
               href="/app/messages"
-              className="relative p-2 text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-white"
+              className="relative p-2 text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-white transition-transform hover:scale-110 active:scale-95"
               aria-label="Messages"
             >
               <MessageSquare className="h-5 w-5" />
@@ -133,12 +133,12 @@ export default async function AppLayout({ children }: AppLayoutProps) {
 
             <Link
               href="/app/notifications"
-              className="relative p-2 text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-white"
+              className="relative p-2 text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-white transition-transform hover:scale-110 active:scale-95 animate-bell-wiggle"
               aria-label="Notifications"
             >
               <Bell className="h-5 w-5" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-medium text-primary-foreground">
+                <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-medium text-primary-foreground animate-pop">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
@@ -148,11 +148,11 @@ export default async function AppLayout({ children }: AppLayoutProps) {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0">
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 transition-transform hover:scale-105 active:scale-95">
                   <Avatar
                     src={currentProfile.avatar_url || undefined}
                     fallbackName={currentProfile.display_name || 'User'}
-                    className="h-10 w-10"
+                    className="h-10 w-10 ring-1 ring-gray-200 dark:ring-gray-700 transition-all hover:ring-primary/50"
                   />
                 </Button>
               </DropdownMenuTrigger>

@@ -210,9 +210,9 @@ export default function FeedPage() {
         {/* ========================================================================= */}
         {/* 3. RIGHT SIDEBAR: TRENDING & NEWS (Visible on XL Screens)                */}
         {/* ========================================================================= */}
-        <aside className="hidden xl:block xl:col-span-3 sticky top-20 space-y-4">
+        <aside className="hidden xl:block xl:col-span-3 sticky top-20 space-y-4 animate-slide-up">
           {/* Trending Topics Card */}
-          <div className="rounded-2xl border border-gray-200/90 bg-white p-4 shadow-xs dark:border-gray-800 dark:bg-gray-900 space-y-3">
+          <div className="card-hover-effect rounded-2xl border border-gray-200/90 bg-white p-4 shadow-xs dark:border-gray-800 dark:bg-gray-900 space-y-3 transition-all duration-300">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-gray-950 dark:text-white flex items-center gap-1.5">
                 <TrendingUp className="h-4 w-4 text-primary" />
@@ -222,10 +222,10 @@ export default function FeedPage() {
             </div>
 
             <div className="space-y-3 pt-1 text-xs">
-              <div>
+              <div className="group/item">
                 <Link
                   href="/app/threads/ai-growth"
-                  className="font-bold text-gray-900 dark:text-gray-100 hover:text-primary transition-colors block"
+                  className="font-bold text-gray-900 dark:text-gray-100 hover:text-primary transition-all duration-150 group-hover/item:translate-x-1 block"
                 >
                   #ai-growth & automation
                 </Link>
@@ -234,10 +234,10 @@ export default function FeedPage() {
                 </span>
               </div>
 
-              <div>
+              <div className="group/item">
                 <Link
                   href="/app/threads/founder-stories"
-                  className="font-bold text-gray-900 dark:text-gray-100 hover:text-primary transition-colors block"
+                  className="font-bold text-gray-900 dark:text-gray-100 hover:text-primary transition-all duration-150 group-hover/item:translate-x-1 block"
                 >
                   #founder-stories
                 </Link>
@@ -246,10 +246,10 @@ export default function FeedPage() {
                 </span>
               </div>
 
-              <div>
+              <div className="group/item">
                 <Link
                   href="/app/threads/career-advice"
-                  className="font-bold text-gray-900 dark:text-gray-100 hover:text-primary transition-colors block"
+                  className="font-bold text-gray-900 dark:text-gray-100 hover:text-primary transition-all duration-150 group-hover/item:translate-x-1 block"
                 >
                   #career-advice & job market
                 </Link>
@@ -258,10 +258,10 @@ export default function FeedPage() {
                 </span>
               </div>
 
-              <div>
+              <div className="group/item">
                 <Link
                   href="/app/threads/tech-leadership"
-                  className="font-bold text-gray-900 dark:text-gray-100 hover:text-primary transition-colors block"
+                  className="font-bold text-gray-900 dark:text-gray-100 hover:text-primary transition-all duration-150 group-hover/item:translate-x-1 block"
                 >
                   #tech-leadership
                 </Link>
@@ -274,16 +274,16 @@ export default function FeedPage() {
             <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
               <Link
                 href="/app/search"
-                className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+                className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline group/all"
               >
                 <span>Discover all topics</span>
-                <ArrowRight className="h-3 w-3" />
+                <ArrowRight className="h-3 w-3 transition-transform group-hover/all:translate-x-1" />
               </Link>
             </div>
           </div>
 
           {/* Quick Hub Card */}
-          <div className="rounded-2xl border border-gray-200/90 bg-white p-4 shadow-xs dark:border-gray-800 dark:bg-gray-900 space-y-2 text-xs">
+          <div className="card-hover-effect rounded-2xl border border-gray-200/90 bg-white p-4 shadow-xs dark:border-gray-800 dark:bg-gray-900 space-y-2 text-xs transition-all duration-300">
             <h4 className="font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
               <Compass className="h-3.5 w-3.5 text-amber-500" />
               Explore Humanverse
