@@ -14,7 +14,6 @@ import {
   Flame,
   Users,
   Compass,
-  ShieldCheck,
   Bookmark,
   RefreshCw,
   HeartHandshake,
@@ -196,29 +195,6 @@ export default function FeedPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Top Welcome / Feed Header */}
-      <div className="flex items-center justify-between pb-1">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-950 dark:text-white flex items-center gap-2">
-            Feed
-          </h1>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-            Real stories, career pivots, anonymous polls, and community support.
-          </p>
-        </div>
-
-        {currentUserProfile?.display_name && (
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-800/60 border border-gray-200/60 dark:border-gray-700/60">
-            <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">
-              {currentUserProfile.display_name}
-            </span>
-            <span title="Verified Human">
-              <ShieldCheck className="h-4 w-4 text-primary" />
-            </span>
-          </div>
-        )}
-      </div>
-
       {/* Upgraded Composer */}
       <Composer
         circles={circles}
