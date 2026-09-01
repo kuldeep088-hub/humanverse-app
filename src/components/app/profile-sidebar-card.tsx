@@ -6,7 +6,6 @@ import { Avatar } from '@/components/ui/avatar'
 import { getProfilePhoto, getRealAuthorName } from '@/lib/avatar'
 import {
   Bookmark,
-  Sparkles,
   Users,
   BookOpen,
   MapPin,
@@ -47,21 +46,13 @@ export function ProfileSidebarCard({
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
           
           {/* Tagline on banner */}
-          <div className="absolute left-3 top-2.5 max-w-[170px] pointer-events-none">
-            <p className="text-[10px] font-bold text-sky-100 leading-tight drop-shadow-xs">
+          <div className="absolute left-3 top-2.5 max-w-[220px] pointer-events-none">
+            <p className="text-[11px] font-bold text-sky-100 leading-tight drop-shadow-xs">
               Building AI powered growth systems
             </p>
-            <p className="text-[8px] font-medium text-sky-300/80 leading-tight">
+            <p className="text-[9px] font-medium text-sky-300/80 leading-tight">
               Automation, SEO, AEO, GEO
             </p>
-          </div>
-
-          {/* Premium Badge */}
-          <div className="absolute right-3 top-3">
-            <span className="inline-flex items-center gap-1 rounded-md bg-amber-400 px-2 py-0.5 text-[10px] font-bold text-amber-950 shadow-sm">
-              <Sparkles className="h-2.5 w-2.5 fill-amber-950" />
-              Premium
-            </span>
           </div>
         </div>
 
