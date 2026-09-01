@@ -10,6 +10,7 @@ import {
   PollOption,
   HelpType,
 } from '@/types'
+import { getRealAuthorName, getProfilePhoto } from '@/lib/avatar'
 
 export interface FetchPostsOptions {
   currentUserId?: string | null
@@ -197,11 +198,16 @@ export async function fetchFeedPosts(
       }
     }
 
-    const resolvedAuthor: ProfileMinimal = profileMap.get(post.author_id) || {
+    const rawAuthor = profileMap.get(post.author_id)
+    const resolvedAuthor: ProfileMinimal = rawAuthor ? {
+      ...rawAuthor,
+      display_name: getRealAuthorName(rawAuthor.display_name, post.author_id),
+      avatar_url: getProfilePhoto(rawAuthor.avatar_url, rawAuthor.display_name || post.author_id),
+    } : {
       id: post.author_id,
-      display_name: 'Human Member',
+      display_name: getRealAuthorName(null, post.author_id),
       professional_context: null,
-      avatar_url: null,
+      avatar_url: getProfilePhoto(null, post.author_id),
       open_to_help: false,
     }
 
@@ -334,11 +340,16 @@ export async function fetchPostDetail(
     if (userReactionObj) userReaction = userReactionObj.type as ReactionType
   }
 
-  const resolvedAuthor: ProfileMinimal = profileMap.get(rawPost.author_id) || {
+  const rawDetailAuthor = profileMap.get(rawPost.author_id)
+  const resolvedAuthor: ProfileMinimal = rawDetailAuthor ? {
+    ...rawDetailAuthor,
+    display_name: getRealAuthorName(rawDetailAuthor.display_name, rawPost.author_id),
+    avatar_url: getProfilePhoto(rawDetailAuthor.avatar_url, rawDetailAuthor.display_name || rawPost.author_id),
+  } : {
     id: rawPost.author_id,
-    display_name: 'Human Member',
+    display_name: getRealAuthorName(null, rawPost.author_id),
     professional_context: null,
-    avatar_url: null,
+    avatar_url: getProfilePhoto(null, rawPost.author_id),
     open_to_help: false,
   }
 
@@ -407,11 +418,16 @@ export async function fetchPostDetail(
 
   const replies = (rawReplies || []).map((reply: RawReply) => {
     const reactions = (replyReactionsRes.data || []).filter((r: { reply_id: string }) => r.reply_id === reply.id)
-    const replyAuthor: ProfileMinimal = profileMap.get(reply.author_id) || {
+    const rawReplyAuthor = profileMap.get(reply.author_id)
+    const replyAuthor: ProfileMinimal = rawReplyAuthor ? {
+      ...rawReplyAuthor,
+      display_name: getRealAuthorName(rawReplyAuthor.display_name, reply.author_id),
+      avatar_url: getProfilePhoto(rawReplyAuthor.avatar_url, rawReplyAuthor.display_name || reply.author_id),
+    } : {
       id: reply.author_id,
-      display_name: 'Human Member',
+      display_name: getRealAuthorName(null, reply.author_id),
       professional_context: null,
-      avatar_url: null,
+      avatar_url: getProfilePhoto(null, reply.author_id),
     }
 
     return {

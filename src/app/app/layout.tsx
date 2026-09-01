@@ -17,6 +17,7 @@ import { ThemeToggle } from '@/components/theme-toggle'
 import { AppNav } from '@/components/app/nav'
 import { MobileNav } from '@/components/app/mobile-nav'
 import { createClient } from '@/lib/supabase/server'
+import { getRealAuthorName, getProfilePhoto } from '@/lib/avatar'
 
 interface AppLayoutProps {
   children: ReactNode
@@ -41,6 +42,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     .eq('id', user.id)
     .single()
 
+  const rawDisplayName = profile?.display_name || user.user_metadata?.display_name || user.email?.split('@')[0]
   const currentProfile: {
     id: string
     display_name: string
@@ -48,9 +50,9 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     avatar_url: string | null
   } = {
     id: user.id,
-    display_name: profile?.display_name || user.user_metadata?.display_name || user.email?.split('@')[0] || 'User',
+    display_name: getRealAuthorName(rawDisplayName, user.id),
     professional_context: profile?.professional_context || user.user_metadata?.professional_context || null,
-    avatar_url: profile?.avatar_url || null,
+    avatar_url: getProfilePhoto(profile?.avatar_url, user.id),
   }
 
   // Ensure profile exists in database

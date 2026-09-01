@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Avatar } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { debounce } from '@/lib/utils'
-import { Post, ReactionType } from '@/types'
+import { Post, ReactionType, ProfileMinimal, Pseudonym } from '@/types'
+import { getRealAuthorName, getProfilePhoto } from '@/lib/avatar'
 import {
   Search,
   X,
@@ -124,8 +125,8 @@ export default function SearchPage() {
           postIds.length > 0 ? supabase.from('replies').select('id, post_id').in('post_id', postIds) : Promise.resolve({ data: [] }),
         ])
 
-        const profMap = new Map((profDataRes.data || []).map((p: { id: string }) => [p.id, p]))
-        const pMap = new Map((pseudoDataRes.data || []).map((p: { id: string }) => [p.id, p]))
+        const profMap = new Map<string, ProfileMinimal>((profDataRes.data || []).map((p: ProfileMinimal) => [p.id, p]))
+        const pMap = new Map<string, Pseudonym>((pseudoDataRes.data || []).map((p: Pseudonym) => [p.id, p]))
         const tMap = new Map((threadDataRes.data || []).map((t: { id: string }) => [t.id, t]))
 
         const processedPosts: Post[] = rawPosts.map((post: RawPost) => {
@@ -145,6 +146,20 @@ export default function SearchPage() {
             if (uRx) userReaction = uRx.type as ReactionType
           }
 
+          const rawAuthor = profMap.get(post.author_id)
+          const resolvedAuthor: ProfileMinimal = rawAuthor
+            ? {
+                ...rawAuthor,
+                display_name: getRealAuthorName(rawAuthor.display_name, post.author_id),
+                avatar_url: getProfilePhoto(rawAuthor.avatar_url, post.author_id),
+              }
+            : {
+                id: post.author_id,
+                display_name: getRealAuthorName(null, post.author_id),
+                professional_context: null,
+                avatar_url: getProfilePhoto(null, post.author_id),
+              }
+
           return {
             id: post.id,
             author_id: post.author_id,
@@ -155,7 +170,7 @@ export default function SearchPage() {
             visibility: post.visibility,
             created_at: post.created_at,
             updated_at: post.updated_at,
-            author: profMap.get(post.author_id) || { id: post.author_id, display_name: 'Human Member', professional_context: null, avatar_url: null },
+            author: resolvedAuthor,
             pseudonym: post.pseudonym_id ? pMap.get(post.pseudonym_id) || null : null,
             thread: post.thread_id ? tMap.get(post.thread_id) || null : null,
             circle: null,

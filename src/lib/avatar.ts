@@ -1,7 +1,7 @@
 /**
- * Realistic profile avatar resolution utility for HumanVerse.
- * Provides high-resolution realistic headshot photos for users and deterministic fallbacks
- * so every post author displays an authentic, human profile photo.
+ * Realistic profile avatar and authentic name resolution utility for HumanVerse.
+ * Provides high-resolution realistic headshot photos and real human names for users
+ * so no post or profile ever displays fake placeholder names like "Human Member".
  */
 
 export const REAL_PROFILE_PHOTOS = [
@@ -22,6 +22,58 @@ export const REAL_PROFILE_PHOTOS = [
   'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=256&h=256&fit=crop&crop=faces&q=80', // tech woman
   'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=256&h=256&fit=crop&crop=faces&q=80', // senior dev man
 ]
+
+export const REAL_AUTHOR_NAMES = [
+  'Elena Vance',
+  'David Miller',
+  'Sarah Jenkins',
+  'Marcus Reed',
+  'Priya Patel',
+  'Alex Chen',
+  'Michael Chang',
+  'Sophia Martinez',
+  'James Wilson',
+  'Clara Hughes',
+  'Lucas Wright',
+  'Maya Lin',
+  'Daniel Kim',
+  'Olivia Scott',
+  'Nathan Brooks',
+  'Rachel Zhao',
+]
+
+/**
+ * Returns a real human name instead of generic placeholders like "Human Member" or "Anonymous Peer".
+ */
+export function getRealAuthorName(name?: string | null, seed?: string | null): string {
+  if (name && typeof name === 'string') {
+    const trimmed = name.trim()
+    const forbidden = [
+      'human member',
+      'anonymous peer',
+      'anonymous',
+      'anonymous alias',
+      'user',
+      'member',
+      'dev user',
+      'unknown',
+      'unknown member',
+    ]
+    if (trimmed.length > 0 && !forbidden.includes(trimmed.toLowerCase())) {
+      return trimmed
+    }
+  }
+
+  const cleanSeed = (seed || 'author').toLowerCase().trim()
+  let hash = 0
+  for (let i = 0; i < cleanSeed.length; i++) {
+    hash = (hash << 5) - hash + cleanSeed.charCodeAt(i)
+    hash |= 0
+  }
+
+  const index = Math.abs(hash) % REAL_AUTHOR_NAMES.length
+  return REAL_AUTHOR_NAMES[index]
+}
 
 /**
  * Returns the user's real avatar URL, or a deterministic real photo portrait.

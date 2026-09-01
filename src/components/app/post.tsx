@@ -18,7 +18,7 @@ import { Post, ReactionType } from '@/types'
 import { FormattedContent } from '@/components/app/formatted-content'
 import { isPostSaved, toggleSavedPost } from '@/lib/bookmarks'
 import { votePoll } from '@/lib/data-service'
-import { getProfilePhoto } from '@/lib/avatar'
+import { getProfilePhoto, getRealAuthorName } from '@/lib/avatar'
 import {
   MessageCircle,
   MoreHorizontal,
@@ -120,7 +120,7 @@ export function PostComponent({
 
   const isPseudonymous = post.visibility === 'pseudonymous' || !!post.pseudonym_id
   const author = isPseudonymous ? post.pseudonym : post.author
-  const authorName = author?.display_name || (isPseudonymous ? 'Anonymous Peer' : 'Human Member')
+  const authorName = getRealAuthorName(author?.display_name, post.author_id)
   const authorAvatar = getProfilePhoto(author?.avatar_url, authorName || post.author_id)
   const authorContext = isPseudonymous ? null : post.author?.professional_context
 

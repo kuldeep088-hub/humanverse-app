@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { formatRelativeTime } from '@/lib/utils'
 import { Conversation, ProfileMinimal, Pseudonym } from '@/types'
+import { getProfilePhoto, getRealAuthorName } from '@/lib/avatar'
 import {
   MessageSquare,
   Search,
@@ -301,11 +302,15 @@ export default function MessagesPage() {
           {conversations.map((conv) => {
             const otherParticipant = conv.participants.find(p => p.user_id !== currentUserId)
             const isPseudonymous = !!otherParticipant?.pseudonym_id
-            const displayName = isPseudonymous
-              ? otherParticipant?.pseudonym?.display_name || 'Anonymous Peer'
-              : otherParticipant?.profile?.display_name || 'Community Member'
-            const avatarUrl = isPseudonymous ? null : otherParticipant?.profile?.avatar_url
-            const headline = isPseudonymous ? null : otherParticipant?.profile?.professional_context
+            const rawName = isPseudonymous
+              ? otherParticipant?.pseudonym?.display_name
+              : otherParticipant?.profile?.display_name
+            const displayName = getRealAuthorName(rawName, otherParticipant?.user_id)
+            const rawAvatar = isPseudonymous
+              ? otherParticipant?.pseudonym?.avatar_url
+              : otherParticipant?.profile?.avatar_url
+            const avatarUrl = getProfilePhoto(rawAvatar, displayName || otherParticipant?.user_id)
+            const headline = otherParticipant?.profile?.professional_context
 
             return (
               <Link

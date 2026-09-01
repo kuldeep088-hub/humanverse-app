@@ -85,8 +85,8 @@ function createSeed(): SeedDatabase {
     },
     {
       id: 'u-senior',
-      display_name: 'Senior engineer',
-      professional_context: 'Senior engineer',
+      display_name: 'David Miller',
+      professional_context: 'Principal Software Architect',
       avatar_url: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=256&h=256&fit=crop&crop=faces&q=80',
       open_to_help: false,
       help_topics: [],
@@ -96,7 +96,7 @@ function createSeed(): SeedDatabase {
   ]
 
   const pseudonyms: Row[] = [
-    { id: 'pseudo-anon', user_id: 'u-senior', display_name: 'Anonymous', avatar_url: null, created_at: hoursAgo(24 * 300) },
+    { id: 'pseudo-anon', user_id: 'u-senior', display_name: 'Elena Vance', avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=256&h=256&fit=crop&crop=faces&q=80', created_at: hoursAgo(24 * 300) },
   ]
 
   const threads: Row[] = [

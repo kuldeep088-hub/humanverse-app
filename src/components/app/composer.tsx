@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { extractThreads } from '@/lib/utils'
 import { scanPrivacy, anonymizeContent, PrivacyScanResult } from '@/lib/privacy-scanner'
+import { getProfilePhoto, getRealAuthorName } from '@/lib/avatar'
 import {
   Globe,
   Users,
@@ -142,18 +143,18 @@ export function Composer({
 
         if (!isCancelled && data) {
           setFetchedProfile({
-            display_name: data.display_name || 'Member',
+            display_name: getRealAuthorName(data.display_name, userId),
             avatar_url: data.avatar_url || null,
             professional_context: data.professional_context || null,
           })
         } else if (!isCancelled) {
           const { data: authUser } = await supabase.auth.getUser()
           if (!isCancelled && authUser?.user) {
+            const rawName =
+              authUser.user.user_metadata?.display_name ||
+              authUser.user.email?.split('@')[0]
             setFetchedProfile({
-              display_name:
-                authUser.user.user_metadata?.display_name ||
-                authUser.user.email?.split('@')[0] ||
-                'Member',
+              display_name: getRealAuthorName(rawName, authUser.user.id),
               avatar_url:
                 authUser.user.user_metadata?.avatar_url ||
                 authUser.user.user_metadata?.picture ||
@@ -450,10 +451,10 @@ export function Composer({
 
       if (!existingProfile) {
         const { data: authUser } = await supabase.auth.getUser()
-        const fallbackName =
+        const rawName =
           authUser?.user?.user_metadata?.display_name ||
-          authUser?.user?.email?.split('@')[0] ||
-          'Human Member'
+          authUser?.user?.email?.split('@')[0]
+        const fallbackName = getRealAuthorName(rawName, userId)
         await supabase.from('profiles').upsert({
           id: userId,
           display_name: fallbackName,
@@ -625,14 +626,15 @@ export function Composer({
   const OptionIcon = selectedOption.icon
   
   // Real User Info from dynamic profile
-  const userDisplayName = profile?.display_name || currentUserProfile?.display_name || 'You'
-  const userAvatarUrl = profile?.avatar_url || currentUserProfile?.avatar_url || null
+  const rawUserName = profile?.display_name || currentUserProfile?.display_name
+  const userDisplayName = getRealAuthorName(rawUserName, userId)
+  const userAvatarUrl = getProfilePhoto(profile?.avatar_url || currentUserProfile?.avatar_url, userDisplayName || userId)
 
   const isAnonymous = visibility === 'pseudonymous'
   const activeDisplayName = isAnonymous
-    ? pseudonym?.display_name || 'Anonymous Alias'
+    ? getRealAuthorName(pseudonym?.display_name, userId)
     : userDisplayName
-  const activeAvatarUrl = isAnonymous ? null : userAvatarUrl
+  const activeAvatarUrl = getProfilePhoto(userAvatarUrl, activeDisplayName || userId)
 
   // Is Publish button valid
   const hasValidContent =

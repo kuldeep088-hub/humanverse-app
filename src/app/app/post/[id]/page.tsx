@@ -22,7 +22,7 @@ import {
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { formatRelativeTime } from '@/lib/utils'
-import { getProfilePhoto } from '@/lib/avatar'
+import { getProfilePhoto, getRealAuthorName } from '@/lib/avatar'
 import { toast } from 'sonner'
 
 interface Reaction {
@@ -264,7 +264,7 @@ export default function PostPage() {
           replies.map(reply => {
             const isPseudonymous = !!reply.pseudonym_id
             const replyAuthor = isPseudonymous ? reply.pseudonym : reply.author
-            const authorName = replyAuthor?.display_name || (isPseudonymous ? 'Anonymous Peer' : 'Human Member')
+            const authorName = getRealAuthorName(replyAuthor?.display_name, reply.author_id)
             const authorAvatar = getProfilePhoto(replyAuthor?.avatar_url, authorName || reply.author_id)
             const authorContext = isPseudonymous ? null : reply.author?.professional_context
 

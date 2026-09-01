@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { formatRelativeTime } from '@/lib/utils'
 import { DirectMessage, ProfileMinimal, Pseudonym } from '@/types'
+import { getProfilePhoto, getRealAuthorName } from '@/lib/avatar'
 import {
   ChevronLeft,
   Send,
@@ -227,11 +228,15 @@ export default function ConversationDetailPage() {
   }
 
   const otherIsPseudonym = !!otherUser?.pseudonym_id
-  const otherName = otherIsPseudonym
-    ? otherUser?.pseudonym?.display_name || 'Anonymous Peer'
-    : otherUser?.profile?.display_name || 'Member'
-  const otherAvatar = otherIsPseudonym ? null : otherUser?.profile?.avatar_url
-  const otherHeadline = otherIsPseudonym ? null : otherUser?.profile?.professional_context
+  const rawOtherName = otherIsPseudonym
+    ? otherUser?.pseudonym?.display_name
+    : otherUser?.profile?.display_name
+  const otherName = getRealAuthorName(rawOtherName, otherUser?.user_id)
+  const rawOtherAvatar = otherIsPseudonym
+    ? otherUser?.pseudonym?.avatar_url
+    : otherUser?.profile?.avatar_url
+  const otherAvatar = getProfilePhoto(rawOtherAvatar, otherName || otherUser?.user_id)
+  const otherHeadline = otherUser?.profile?.professional_context
 
   return (
     <div className="max-w-3xl mx-auto flex flex-col h-[calc(100vh-8.5rem)] rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 shadow-sm overflow-hidden">
@@ -315,10 +320,12 @@ export default function ConversationDetailPage() {
           messages.map((msg) => {
             const isMe = msg.sender_id === currentUserId
             const isMsgPseudonym = !!msg.pseudonym_id
-            const senderName = isMsgPseudonym
-              ? msg.pseudonym?.display_name || 'Anonymous Peer'
-              : msg.sender?.display_name || (isMe ? 'You' : 'Member')
-            const avatarUrl = isMsgPseudonym ? null : msg.sender?.avatar_url
+            const rawSenderName = isMsgPseudonym
+              ? msg.pseudonym?.display_name
+              : msg.sender?.display_name
+            const senderName = isMe ? 'You' : getRealAuthorName(rawSenderName, msg.sender_id)
+            const rawAvatar = isMsgPseudonym ? msg.pseudonym?.avatar_url : msg.sender?.avatar_url
+            const avatarUrl = getProfilePhoto(rawAvatar, senderName || msg.sender_id)
 
             return (
               <div
