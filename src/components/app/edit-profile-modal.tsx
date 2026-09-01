@@ -98,18 +98,34 @@ export function EditProfileModal({
     try {
       let finalAvatarUrl = avatarPreview
 
-      // If user uploaded a new avatar file, upload to storage
+      // If user uploaded a new avatar file, upload to storage with base64 fallback
       if (avatarFile) {
-        const fileExt = avatarFile.name.split('.').pop()
-        const fileName = `${profile.id}/avatar_${Date.now()}.${fileExt}`
+        try {
+          const fileExt = avatarFile.name.split('.').pop()
+          const fileName = `${profile.id}/avatar_${Date.now()}.${fileExt}`
 
-        const { error: uploadError } = await supabase.storage
-          .from('avatars')
-          .upload(fileName, avatarFile, { upsert: true })
+          const { error: uploadError } = await supabase.storage
+            .from('avatars')
+            .upload(fileName, avatarFile, { upsert: true })
 
-        if (!uploadError) {
-          const { data } = supabase.storage.from('avatars').getPublicUrl(fileName)
-          finalAvatarUrl = data.publicUrl
+          if (!uploadError) {
+            const { data } = supabase.storage.from('avatars').getPublicUrl(fileName)
+            if (data?.publicUrl) {
+              finalAvatarUrl = data.publicUrl
+            }
+          } else {
+            const reader = new FileReader()
+            finalAvatarUrl = await new Promise<string>((resolve) => {
+              reader.onload = () => resolve(reader.result as string)
+              reader.readAsDataURL(avatarFile)
+            })
+          }
+        } catch {
+          const reader = new FileReader()
+          finalAvatarUrl = await new Promise<string>((resolve) => {
+            reader.onload = () => resolve(reader.result as string)
+            reader.readAsDataURL(avatarFile)
+          })
         }
       }
 

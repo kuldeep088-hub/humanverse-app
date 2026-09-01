@@ -2,8 +2,8 @@
 
 import * as React from 'react'
 import * as AvatarPrimitive from '@radix-ui/react-avatar'
-import { cn } from '@/lib/utils'
-import { getInitials } from '@/lib/utils'
+import { cn, getInitials } from '@/lib/utils'
+import { getProfilePhoto } from '@/lib/avatar'
 
 interface AvatarProps extends React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Root> {
   fallbackName?: string
@@ -14,24 +14,28 @@ const Avatar = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Root>,
   AvatarProps
 >(({ className, fallbackName, src, ...props }, ref) => {
+  // If no src is provided, derive a realistic profile photo from the fallback name
+  const resolvedSrc = src || (fallbackName ? getProfilePhoto(undefined, fallbackName) : undefined)
+
   return (
     <AvatarPrimitive.Root
       ref={ref}
       className={cn(
-        'relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full',
+        'relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800',
         className
       )}
       {...props}
     >
       <AvatarPrimitive.Image
         className="aspect-square h-full w-full object-cover rounded-full"
-        src={src}
-        alt={fallbackName || ''}
+        src={resolvedSrc}
+        alt={fallbackName || 'Profile Photo'}
+        loading="lazy"
       />
       <AvatarPrimitive.Fallback
         className={cn(
           'flex h-full w-full items-center justify-center rounded-full bg-primary/10 text-primary font-semibold select-none',
-          fallbackName ? 'text-sm font-semibold' : ''
+          fallbackName ? 'text-xs sm:text-sm font-semibold' : ''
         )}
       >
         {fallbackName ? getInitials(fallbackName) : '?'}

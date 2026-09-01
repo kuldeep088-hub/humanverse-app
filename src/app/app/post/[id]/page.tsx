@@ -22,6 +22,7 @@ import {
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { formatRelativeTime } from '@/lib/utils'
+import { getProfilePhoto } from '@/lib/avatar'
 import { toast } from 'sonner'
 
 interface Reaction {
@@ -212,7 +213,7 @@ export default function PostPage() {
       <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
         <div className="flex items-start gap-3">
           <Avatar
-            src={currentUserProfile?.avatar_url || undefined}
+            src={getProfilePhoto(currentUserProfile?.avatar_url, currentUserProfile?.display_name || currentUserId)}
             fallbackName={currentUserProfile?.display_name || 'You'}
             className="h-9 w-9 shrink-0 border border-gray-100 dark:border-gray-800"
           />
@@ -264,7 +265,7 @@ export default function PostPage() {
             const isPseudonymous = !!reply.pseudonym_id
             const replyAuthor = isPseudonymous ? reply.pseudonym : reply.author
             const authorName = replyAuthor?.display_name || (isPseudonymous ? 'Anonymous Peer' : 'Human Member')
-            const authorAvatar = isPseudonymous ? null : replyAuthor?.avatar_url
+            const authorAvatar = getProfilePhoto(replyAuthor?.avatar_url, authorName || reply.author_id)
             const authorContext = isPseudonymous ? null : reply.author?.professional_context
 
             const replyCounts = { been_there: 0, oof: 0, respect: 0, needed_this: 0 }

@@ -38,20 +38,28 @@ export default function OnboardingPage() {
 
   const uploadAvatar = async (userId: string): Promise<string | null> => {
     if (!avatarFile) return null
-    const fileExt = avatarFile.name.split('.').pop()
-    const fileName = `${userId}/avatar.${fileExt}`
+    try {
+      const fileExt = avatarFile.name.split('.').pop()
+      const fileName = `${userId}/avatar.${fileExt}`
 
-    const { error } = await supabase.storage
-      .from('avatars')
-      .upload(fileName, avatarFile, { upsert: true })
+      const { error } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, avatarFile, { upsert: true })
 
-    if (error) {
-      console.error('Avatar upload error:', error)
-      return null
+      if (!error) {
+        const { data } = supabase.storage.from('avatars').getPublicUrl(fileName)
+        if (data?.publicUrl) return data.publicUrl
+      }
+    } catch {
+      // ignore
     }
 
-    const { data } = supabase.storage.from('avatars').getPublicUrl(fileName)
-    return data.publicUrl
+    // Resilient fallback to base64 data url
+    return new Promise<string>((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.readAsDataURL(avatarFile)
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
