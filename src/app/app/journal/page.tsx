@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import {
   BookOpen,
-  Download,
   Bookmark,
   FileText,
   Lock,
@@ -35,7 +34,6 @@ export default function JournalPage() {
   })
   const [activeTab, setActiveTab] = useState<'reflections' | 'saved' | 'drafts' | 'scratchpad'>('reflections')
   const [isLoading, setIsLoading] = useState(true)
-  const [isExporting, setIsExporting] = useState(false)
   const [isSavingNotes, setIsSavingNotes] = useState(false)
   const [currentUserProfile, setCurrentUserProfile] = useState<{
     display_name: string
@@ -109,95 +107,6 @@ export default function JournalPage() {
     setTimeout(() => setIsSavingNotes(false), 800)
   }
 
-  // 1-Click Markdown Export Engine
-  const handleExportMarkdown = () => {
-    setIsExporting(true)
-    try {
-      const now = new Date()
-      const dateStr = now.toISOString().split('T')[0]
-      const authorName = currentUserProfile?.display_name || 'Humanverse Member'
-      const context = currentUserProfile?.professional_context || 'Verified Professional'
-
-      let md = `# Career Reflection Journal & Archive\n`
-      md += `**Author:** ${authorName} (${context})\n`
-      md += `**Exported on:** ${now.toLocaleDateString('en-US', { dateStyle: 'full' })}\n`
-      md += `**Platform:** Humanverse (https://app.humanverse.fun)\n\n`
-      md += `---\n\n`
-
-      // 1. Published Stories
-      md += `## 1. My Published Reflections & Stories (${myPosts.length})\n\n`
-      if (myPosts.length === 0) {
-        md += `*No published stories yet.*\n\n`
-      } else {
-        myPosts.forEach((post, i) => {
-          const date = new Date(post.created_at).toLocaleDateString('en-US', { dateStyle: 'medium' })
-          const reactions = post.reaction_counts || { been_there: 0, oof: 0, respect: 0, needed_this: 0 }
-          const totalReactions = reactions.been_there + reactions.oof + reactions.respect + reactions.needed_this
-
-          md += `### ${i + 1}. Story published on ${date}\n`
-          if (post.thread) md += `**Thread:** #${post.thread.slug}\n`
-          md += `**Visibility:** ${post.visibility}\n`
-          md += `**Community Reactions:** ${totalReactions} (Been there: ${reactions.been_there}, Respect: ${reactions.respect}, Needed this: ${reactions.needed_this}, Oof: ${reactions.oof})\n\n`
-          md += `${post.content}\n\n`
-          md += `---\n\n`
-        })
-      }
-
-      // 2. Saved Wisdom & Bookmarks
-      md += `## 2. Saved Peer Wisdom & Bookmarked Stories (${savedPosts.length})\n\n`
-      if (savedPosts.length === 0) {
-        md += `*No saved stories yet.*\n\n`
-      } else {
-        savedPosts.forEach((post, i) => {
-          const author = post.author?.display_name || 'Peer Member'
-          const authorHeadline = post.author?.professional_context ? `(${post.author.professional_context})` : ''
-          const date = new Date(post.created_at).toLocaleDateString('en-US', { dateStyle: 'medium' })
-
-          md += `### ${i + 1}. Insight from ${author} ${authorHeadline} - ${date}\n`
-          if (post.thread) md += `**Topic:** #${post.thread.slug}\n\n`
-          md += `${post.content}\n\n`
-          md += `---\n\n`
-        })
-      }
-
-      // 3. Unpublished Drafts
-      if (drafts.length > 0) {
-        md += `## 3. My Unpublished Drafts (${drafts.length})\n\n`
-        drafts.forEach((draft, i) => {
-          const date = new Date(draft.created_at).toLocaleDateString('en-US', { dateStyle: 'medium' })
-          md += `### ${i + 1}. Draft from ${date}\n`
-          md += `${draft.content}\n\n`
-          md += `---\n\n`
-        })
-      }
-
-      // 4. Private Scratchpad Notes
-      if (scratchNotes.trim()) {
-        md += `## 4. Private Work Notes & Scratchpad\n\n`
-        md += `${scratchNotes.trim()}\n\n`
-        md += `---\n\n`
-      }
-
-      // Trigger Browser Download
-      const blob = new Blob([md], { type: 'text/markdown;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `Humanverse-Career-Journal-${dateStr}.md`)
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-
-      toast.success('Career Journal exported to Markdown (.md)!')
-    } catch (err) {
-      toast.error('Could not generate export file')
-      console.error(err)
-    } finally {
-      setIsExporting(false)
-    }
-  }
-
   if (isLoading || isUserLoading) {
     return (
       <div className="flex justify-center py-20">
@@ -219,15 +128,6 @@ export default function JournalPage() {
             Your personal archive of candid reflections, bookmarked wisdom, and private work logs.
           </p>
         </div>
-
-        <Button
-          onClick={handleExportMarkdown}
-          disabled={isExporting}
-          className="gap-2 shrink-0 rounded-xl shadow-xs"
-        >
-          {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-          Export to Markdown (.md)
-        </Button>
       </div>
 
       {/* Navigation Tabs */}
