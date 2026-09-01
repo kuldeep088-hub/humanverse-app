@@ -22,10 +22,13 @@ import {
   MessageSquare,
   GitCommit,
   HeartHandshake,
+  Camera,
 } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { toast } from 'sonner'
+import { BANNER_PRESETS } from '@/components/app/edit-profile-modal'
 
 export default function ProfilePage() {
   const params = useParams<{ id: string }>()
@@ -40,50 +43,96 @@ export default function ProfilePage() {
   const [isNotFound, setIsNotFound] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isStartingChat, setIsStartingChat] = useState(false)
+  const [localBanner] = useState<string | null>(() => {
+    if (typeof window !== 'undefined' && (id === 'me' ? currentUserId : id)) {
+      const uid = id === 'me' ? currentUserId : id
+      return uid ? localStorage.getItem(`humanverse_banner_${uid}`) : null
+    }
+    return null
+  })
 
   const isOwnProfile = id === 'me' || id === currentUserId
   const targetUserId = isOwnProfile ? currentUserId : id
 
-  const fetchProfile = useCallback(async () => {
-    if (!targetUserId) return
-    const supabase = createClient()
-
-    // 1. Fetch Profile
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', targetUserId)
-      .single()
-
-    if (!profileData) {
-      setIsNotFound(true)
-      setIsLoading(false)
-      return
-    }
-    setProfile(profileData as Profile)
-
-    // 2. Fetch author's posts via data service
-    const userPosts = await fetchFeedPosts(supabase, {
-      currentUserId,
-      authorId: targetUserId,
-      limit: 100,
-    })
-
-    // Filter visibility: other users only see public posts
-    const visiblePosts = isOwnProfile
-      ? userPosts
-      : userPosts.filter(p => p.visibility === 'public')
-
-    setPosts(visiblePosts)
-    setIsLoading(false)
-  }, [targetUserId, isOwnProfile, currentUserId])
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const refreshProfile = useCallback(() => {
+    setRefreshTrigger(prev => prev + 1)
+  }, [])
 
   useEffect(() => {
-    const run = async () => {
-      await fetchProfile()
+    let isCancelled = false
+
+    const loadProfileData = async () => {
+      const supabase = createClient()
+      let effectiveUserId = targetUserId
+
+      // If viewing 'me' and targetUserId is still resolving, look up auth directly
+      if (!effectiveUserId && id === 'me') {
+        const { data: authData } = await supabase.auth.getUser()
+        effectiveUserId = authData?.user?.id
+      }
+
+      if (!effectiveUserId) {
+        if (!isUserLoading && !isCancelled) setIsLoading(false)
+        return
+      }
+
+      // 1. Fetch Profile
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', effectiveUserId)
+        .single()
+
+      if (isCancelled) return
+
+      if (!profileData) {
+        // Fallback for current user if profile not yet inserted
+        const { data: authUser } = await supabase.auth.getUser()
+        if (authUser?.user && (authUser.user.id === effectiveUserId || id === 'me')) {
+          const fallbackProf: Profile = {
+            id: authUser.user.id,
+            display_name: authUser.user.user_metadata?.display_name || authUser.user.email?.split('@')[0] || 'User',
+            avatar_url: authUser.user.user_metadata?.avatar_url || authUser.user.user_metadata?.picture || null,
+            professional_context: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
+          if (!isCancelled) setProfile(fallbackProf)
+        } else {
+          if (!isCancelled) {
+            setIsNotFound(true)
+            setIsLoading(false)
+          }
+          return
+        }
+      } else {
+        if (!isCancelled) setProfile(profileData as Profile)
+      }
+
+      // 2. Fetch author's real posts from Supabase
+      const userPosts = await fetchFeedPosts(supabase, {
+        currentUserId: effectiveUserId,
+        authorId: effectiveUserId,
+        limit: 100,
+      })
+
+      if (!isCancelled) {
+        const visiblePosts = (id === 'me' || effectiveUserId === currentUserId)
+          ? userPosts
+          : userPosts.filter(p => p.visibility === 'public')
+
+        setPosts(visiblePosts)
+        setIsLoading(false)
+      }
     }
-    run()
-  }, [fetchProfile])
+
+    loadProfileData()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [targetUserId, id, isUserLoading, currentUserId, refreshTrigger])
 
   const handleShare = () => {
     if (typeof window !== 'undefined') {
@@ -169,83 +218,123 @@ export default function ProfilePage() {
     return acc + r.been_there + r.oof + r.respect + r.needed_this
   }, 0)
 
-  return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* Profile Header Card */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900 relative overflow-hidden">
-        <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-primary via-primary/80 to-primary/40" />
+  // Active banner url/preset resolution
+  const activeBanner = profile.banner_url || localBanner || 'preset:tech-grid'
+  const presetClass = BANNER_PRESETS.find(p => p.id === activeBanner)?.class || 'bg-gradient-to-r from-[#1e293b] via-[#0f172a] to-[#1e3a8a]'
+  const isCustomImage = activeBanner.startsWith('http') || activeBanner.startsWith('data:')
 
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 pt-2">
-          <div className="flex items-start gap-4">
-            <div className="relative">
-              <Avatar
-                src={profile.avatar_url || undefined}
-                fallbackName={profile.display_name}
-                className="h-20 w-20 text-xl border-2 border-white shadow dark:border-gray-800"
-              />
-              <span className="absolute bottom-0 right-0 h-4 w-4 rounded-full bg-emerald-500 border-2 border-white dark:border-gray-900" title="Active member" />
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      {/* Profile Header Card */}
+      <div className="card-hover-effect rounded-2xl sm:rounded-3xl border border-gray-200/90 bg-white shadow-xs dark:border-gray-800 dark:bg-gray-900 relative overflow-hidden transition-all duration-300">
+        
+        {/* Banner Cover */}
+        <div className="relative h-36 sm:h-48 w-full overflow-hidden group">
+          {isCustomImage ? (
+            <Image
+              src={activeBanner}
+              alt="Profile Cover Banner"
+              fill
+              className="object-cover transition-transform duration-700 group-hover:scale-105"
+              priority
+            />
+          ) : (
+            <div className={`h-full w-full ${presetClass} relative`}>
+              <div className="absolute inset-0 opacity-35 bg-[radial-gradient(#38bdf8_1.5px,transparent_1.5px)] [background-size:16px_16px] transition-transform duration-700 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+            </div>
+          )}
+
+          {/* Edit Banner Camera Button (for profile owner) */}
+          {isOwnProfile && (
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(true)}
+              className="absolute top-3.5 right-3.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/60 hover:bg-black/85 text-white text-xs font-semibold backdrop-blur-md transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg cursor-pointer border border-white/20"
+              title="Edit Cover Banner"
+            >
+              <Camera className="h-3.5 w-3.5" />
+              <span>Edit banner</span>
+            </button>
+          )}
+        </div>
+
+        {/* Profile Details Container */}
+        <div className="px-5 sm:px-8 pb-6 pt-0 relative">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 -mt-12 sm:-mt-16 mb-4">
+            {/* Overlapping Avatar */}
+            <div className="relative inline-block">
+              <div className="rounded-full p-1 bg-white dark:bg-gray-900 ring-4 ring-white dark:ring-gray-900 shadow-xl">
+                <Avatar
+                  src={profile.avatar_url || undefined}
+                  fallbackName={profile.display_name}
+                  className="h-24 w-24 sm:h-28 sm:w-28 text-2xl"
+                />
+              </div>
+              <span className="absolute bottom-1 right-1 h-5 w-5 rounded-full bg-emerald-500 border-2 border-white dark:border-gray-900 shadow-sm" title="Active member" />
             </div>
 
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold text-gray-950 dark:text-white tracking-tight">
-                  {profile.display_name}
-                </h1>
-                <span title="Verified Member">
-                  <ShieldCheck className="h-5 w-5 text-primary" />
-                </span>
-              </div>
-
-              {profile.professional_context ? (
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                  <Briefcase className="h-4 w-4 text-gray-400 shrink-0" />
-                  {profile.professional_context}
-                </p>
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 self-start sm:self-auto pt-2 sm:pt-0">
+              {isOwnProfile ? (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="gap-1.5 rounded-full font-bold shadow-xs hover:shadow-md transition-all"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit Profile
+                </Button>
               ) : (
-                <p className="text-xs text-gray-400 italic">No professional context added</p>
+                <Button
+                  size="sm"
+                  onClick={handleMessageUser}
+                  disabled={isStartingChat}
+                  className="gap-1.5 rounded-full font-bold shadow-xs hover:shadow-md transition-all"
+                >
+                  {isStartingChat ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageSquare className="h-3.5 w-3.5" />}
+                  Message
+                </Button>
               )}
 
-              <p className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1.5 pt-1">
-                <Calendar className="h-3.5 w-3.5" />
-                Member since {profile.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Recently'}
-              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleShare}
+                className="gap-1.5 rounded-full font-bold transition-all hover:scale-105 active:scale-95"
+                title="Share profile"
+              >
+                <Share2 className="h-3.5 w-3.5" />
+                Share
+              </Button>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center gap-2 self-start">
-            {isOwnProfile ? (
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => setIsEditModalOpen(true)}
-                className="gap-1.5"
-              >
-                <Pencil className="h-4 w-4" />
-                Edit Profile
-              </Button>
+          {/* User Details */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-950 dark:text-white tracking-tight">
+                {profile.display_name}
+              </h1>
+              <span title="Verified Member">
+                <ShieldCheck className="h-5 w-5 text-primary" />
+              </span>
+            </div>
+
+            {profile.professional_context ? (
+              <p className="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+                <Briefcase className="h-4 w-4 text-primary shrink-0" />
+                {profile.professional_context}
+              </p>
             ) : (
-              <Button
-                size="sm"
-                onClick={handleMessageUser}
-                disabled={isStartingChat}
-                className="gap-1.5"
-              >
-                {isStartingChat ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
-                Message
-              </Button>
+              <p className="text-xs text-gray-400 italic">No professional headline added</p>
             )}
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleShare}
-              className="gap-1.5"
-              title="Share profile"
-            >
-              <Share2 className="h-4 w-4" />
-              Share
-            </Button>
+            <p className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1.5 pt-0.5">
+              <Calendar className="h-3.5 w-3.5" />
+              Member since {profile.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Recently'}
+            </p>
           </div>
         </div>
 
@@ -352,7 +441,7 @@ export default function ProfilePage() {
               <PostComponent
                 key={post.id}
                 post={post}
-                onUpdate={fetchProfile}
+                onUpdate={refreshProfile}
                 currentUserId={currentUserId}
                 currentUserProfile={profile}
               />
@@ -372,7 +461,7 @@ export default function ProfilePage() {
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
           profile={profile}
-          onProfileUpdated={fetchProfile}
+          onProfileUpdated={refreshProfile}
         />
       )}
     </div>

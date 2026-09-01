@@ -1,9 +1,11 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Avatar } from '@/components/ui/avatar'
 import { getProfilePhoto, getRealAuthorName } from '@/lib/avatar'
+import { BANNER_PRESETS } from '@/components/app/edit-profile-modal'
 import {
   Bookmark,
   Users,
@@ -17,6 +19,7 @@ interface ProfileSidebarCardProps {
   userProfile?: {
     display_name: string
     avatar_url: string | null
+    banner_url?: string | null
     professional_context: string | null
   } | null
   userId?: string | null
@@ -28,6 +31,13 @@ export function ProfileSidebarCard({
   userId,
   pseudonym,
 }: ProfileSidebarCardProps) {
+  const [localBanner] = useState<string | null>(() => {
+    if (typeof window !== 'undefined' && userId) {
+      return localStorage.getItem(`humanverse_banner_${userId}`)
+    }
+    return null
+  })
+
   const rawName = userProfile?.display_name || 'Kuldeep Sharma'
   const displayName = getRealAuthorName(rawName, userId || 'kuldeep')
   const avatarUrl = getProfilePhoto(userProfile?.avatar_url, displayName)
@@ -35,15 +45,30 @@ export function ProfileSidebarCard({
     userProfile?.professional_context ||
     'AI Automation & Growth Specialist | SEO • AEO • GEO | ...'
 
+  const activeBanner = userProfile?.banner_url || localBanner || 'preset:tech-grid'
+  const presetClass = BANNER_PRESETS.find(p => p.id === activeBanner)?.class || 'bg-gradient-to-r from-[#1e293b] via-[#0f172a] to-[#1e3a8a]'
+  const isCustomImage = activeBanner.startsWith('http') || activeBanner.startsWith('data:')
+
   return (
     <div className="w-full space-y-3 animate-slide-up">
       {/* Main Profile Summary Card */}
       <div className="card-hover-effect overflow-hidden rounded-2xl border border-gray-200/90 bg-white shadow-xs dark:border-gray-800 dark:bg-gray-900 transition-all duration-300">
-        {/* Banner Cover matching the screenshot style */}
-        <div className="relative h-20 sm:h-24 w-full bg-gradient-to-r from-[#1e293b] via-[#0f172a] to-[#1e3a8a] overflow-hidden group">
-          {/* Subtle network lines / decorative tech pattern */}
-          <div className="absolute inset-0 opacity-30 bg-[radial-gradient(#38bdf8_1.5px,transparent_1.5px)] [background-size:12px_12px] transition-transform duration-700 group-hover:scale-105" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+        {/* Banner Cover matching the user profile banner */}
+        <div className="relative h-20 sm:h-24 w-full overflow-hidden group">
+          {isCustomImage ? (
+            <Image
+              src={activeBanner}
+              alt="Profile Banner"
+              fill
+              className="object-cover transition-transform duration-700 group-hover:scale-105"
+              priority
+            />
+          ) : (
+            <div className={`h-full w-full ${presetClass} relative`}>
+              <div className="absolute inset-0 opacity-30 bg-[radial-gradient(#38bdf8_1.5px,transparent_1.5px)] [background-size:12px_12px] transition-transform duration-700 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+            </div>
+          )}
           
           {/* Tagline on banner */}
           <div className="absolute left-3 top-2.5 max-w-[220px] pointer-events-none transition-transform duration-300 group-hover:translate-x-0.5">

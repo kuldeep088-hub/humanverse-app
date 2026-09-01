@@ -7,6 +7,7 @@ export interface Profile {
   display_name: string
   professional_context: string | null
   avatar_url: string | null
+  banner_url?: string | null
   bio?: string | null
   open_to_help?: boolean | null
   help_topics?: string[] | null
@@ -19,6 +20,7 @@ export interface ProfileMinimal {
   display_name: string
   professional_context: string | null
   avatar_url: string | null
+  banner_url?: string | null
   open_to_help?: boolean | null
   help_topics?: string[] | null
 }
