@@ -647,9 +647,9 @@ export function Composer({
       {/* ========================================================================= */}
       {/* 1. COMPACT FEED COMPOSER CARD (Initial State)                             */}
       {/* ========================================================================= */}
-      <div className="group/card rounded-2xl border border-gray-200/90 bg-white p-3.5 sm:p-4.5 shadow-xs hover:shadow-md dark:border-gray-800 dark:bg-gray-900 transition-all duration-300 hover:border-gray-300 dark:hover:border-gray-700">
+      <div className="group/card rounded-2xl border border-gray-200/90 bg-white p-3.5 sm:p-4 shadow-xs hover:shadow-md dark:border-gray-800 dark:bg-gray-900 transition-all duration-200">
         {/* Top Row: User Avatar + 'Start a post' input trigger */}
-        <div className="flex items-center gap-3 sm:gap-3.5">
+        <div className="flex items-center gap-3">
           <div
             className="relative group/avatar cursor-pointer shrink-0"
             onClick={() => handleOpenModal('post')}
@@ -658,7 +658,7 @@ export function Composer({
             <Avatar
               src={userAvatarUrl || undefined}
               fallbackName={userDisplayName}
-              className="h-10 w-10 sm:h-11 sm:w-11 rounded-full shrink-0 border border-gray-200/90 dark:border-gray-700 shadow-2xs transition-transform duration-200 group-hover/avatar:scale-105"
+              className="h-11 w-11 sm:h-12 sm:w-12 rounded-full shrink-0 border border-gray-200 dark:border-gray-700 shadow-2xs transition-transform duration-200 group-hover/avatar:scale-105"
             />
           </div>
 
@@ -666,56 +666,55 @@ export function Composer({
             ref={triggerButtonRef}
             type="button"
             onClick={() => handleOpenModal('post')}
-            className="flex-1 h-10 sm:h-11 flex items-center px-4.5 rounded-full border border-gray-200/90 bg-gray-50/70 hover:bg-gray-100/90 hover:border-primary/40 dark:border-gray-700/70 dark:bg-gray-800/50 dark:hover:bg-gray-800 dark:hover:border-primary/40 text-left text-xs sm:text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-all duration-200 cursor-pointer shadow-2xs active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            className="flex-1 h-11 sm:h-12 flex items-center px-5 rounded-full border border-gray-300 dark:border-gray-700 bg-white hover:bg-gray-50/80 dark:bg-gray-900 dark:hover:bg-gray-800/80 text-left text-sm sm:text-[15px] font-bold text-gray-900 dark:text-gray-100 transition-all duration-150 cursor-pointer shadow-2xs active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
             aria-label="Start a post"
           >
-            <span>Start a post...</span>
+            <span>Start a post</span>
           </button>
         </div>
 
         {/* Bottom Row: 3 Primary Actions (Video, Photo, Write article) + Poll */}
-        <div className="mt-3 sm:mt-3.5 pt-2.5 sm:pt-3 border-t border-gray-100 dark:border-gray-800/80 flex items-center justify-between gap-1 overflow-x-auto no-scrollbar">
+        <div className="mt-3.5 pt-2.5 flex items-center justify-around gap-1">
           {/* 1. Video Option */}
           <button
             type="button"
             onClick={() => handleOpenModal('video')}
-            className="group/btn flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/40 dark:hover:text-emerald-300 transition-all duration-200 shrink-0 cursor-pointer active:scale-95"
+            className="group/btn flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-bold text-gray-700 hover:text-gray-950 dark:text-gray-200 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-150 shrink-0 cursor-pointer active:scale-95"
           >
-            <VideoIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 transition-transform duration-200 group-hover/btn:scale-110 group-hover/btn:-translate-y-0.5" />
-            <span>Video</span>
+            <span className="flex h-5 w-5 items-center justify-center rounded-sm text-emerald-600 dark:text-emerald-400">
+              <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
+                <path d="M19 4H5a3 3 0 00-3 3v10a3 3 0 003 3h14a3 3 0 003-3V7a3 3 0 00-3-3zm-9 11V9l6 3-6 3z" />
+              </svg>
+            </span>
+            <span className="font-bold">Video</span>
           </button>
 
           {/* 2. Photo Option */}
           <button
             type="button"
             onClick={() => handleOpenModal('photo')}
-            className="group/btn flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-950/40 dark:hover:text-blue-300 transition-all duration-200 shrink-0 cursor-pointer active:scale-95"
+            className="group/btn flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-bold text-gray-700 hover:text-gray-950 dark:text-gray-200 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-150 shrink-0 cursor-pointer active:scale-95"
           >
-            <ImageIcon className="h-4 w-4 text-blue-500 dark:text-blue-400 shrink-0 transition-transform duration-200 group-hover/btn:scale-110 group-hover/btn:-translate-y-0.5" />
-            <span>Photo</span>
+            <span className="flex h-5 w-5 items-center justify-center rounded-sm text-[#0a66c2] dark:text-sky-400">
+              <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
+                <path d="M19 3H5a3 3 0 00-3 3v12a3 3 0 003 3h14a3 3 0 003-3V6a3 3 0 00-3-3zm-1 15H6l3.5-4.5 2.5 3 3.5-4.5 2.5 3zM8.5 9.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3z" />
+              </svg>
+            </span>
+            <span className="font-bold">Photo</span>
           </button>
 
           {/* 3. Write Article Option */}
           <button
             type="button"
             onClick={() => handleOpenModal('article')}
-            className="group/btn flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-950/40 dark:hover:text-amber-300 transition-all duration-200 shrink-0 cursor-pointer active:scale-95"
+            className="group/btn flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-sm font-bold text-gray-700 hover:text-gray-950 dark:text-gray-200 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-150 shrink-0 cursor-pointer active:scale-95"
           >
-            <FileText className="h-4 w-4 text-amber-500 dark:text-amber-400 shrink-0 transition-transform duration-200 group-hover/btn:scale-110 group-hover/btn:-translate-y-0.5" />
-            <span>Write article</span>
-          </button>
-
-          {/* Auxiliary Option: Poll */}
-          <button
-            type="button"
-            onClick={() => {
-              setShowPollBuilder(true)
-              handleOpenModal('post')
-            }}
-            className="group/btn hidden sm:flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-indigo-50 hover:text-indigo-700 dark:hover:bg-indigo-950/40 dark:hover:text-indigo-300 transition-all duration-200 shrink-0 cursor-pointer active:scale-95"
-          >
-            <BarChart2 className="h-4 w-4 text-indigo-500 dark:text-indigo-400 shrink-0 transition-transform duration-200 group-hover/btn:scale-110 group-hover/btn:-translate-y-0.5" />
-            <span>Poll</span>
+            <span className="flex h-5 w-5 items-center justify-center rounded-sm text-[#b24020] dark:text-orange-400">
+              <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
+                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H6v-2h8v2zm4-4H6v-2h12v2zm0-4H6V7h12v2z" />
+              </svg>
+            </span>
+            <span className="font-bold">Write article</span>
           </button>
         </div>
       </div>

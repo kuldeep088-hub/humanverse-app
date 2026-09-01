@@ -252,67 +252,93 @@ export function PostComponent({
   const helpTagInfo = post.help_type ? HELP_TAG_CONFIG[post.help_type] : null
 
   return (
-    <article className="group rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:border-gray-300 hover:shadow dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700">
-      <div className="flex items-start gap-3.5">
+    <article className="group rounded-2xl border border-gray-200/90 bg-white p-4 sm:p-5 shadow-xs transition-all hover:border-gray-300 hover:shadow-md dark:border-gray-800 dark:bg-gray-900 dark:hover:border-gray-700">
+      <div className="flex items-start gap-3 sm:gap-3.5">
         {/* Author Avatar */}
-        <Avatar
-          src={authorAvatar || undefined}
-          fallbackName={authorName}
-          className="h-10 w-10 shrink-0 border border-gray-100 dark:border-gray-800"
-        />
+        <Link href={isPseudonymous ? '#' : `/app/profile/${post.author_id}`} className="shrink-0">
+          <Avatar
+            src={authorAvatar || undefined}
+            fallbackName={authorName}
+            className="h-11 w-11 sm:h-12 sm:w-12 shrink-0 border border-gray-200 dark:border-gray-700 shadow-2xs hover:opacity-95 transition-opacity"
+          />
+        </Link>
 
         <div className="flex-1 min-w-0">
           {/* Header row */}
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-              {isPseudonymous ? (
-                <span className="font-semibold text-sm text-gray-950 dark:text-white">
-                  {authorName}
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 space-y-0.5">
+              {/* Line 1: Author Name + Verified Badge + Following */}
+              <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                {isPseudonymous ? (
+                  <span className="font-bold text-[15px] text-gray-950 dark:text-white">
+                    {authorName}
+                  </span>
+                ) : (
+                  <Link
+                    href={`/app/profile/${post.author_id}`}
+                    className="font-bold text-[15px] text-gray-950 hover:text-primary hover:underline transition-colors dark:text-white truncate"
+                  >
+                    {authorName}
+                  </Link>
+                )}
+
+                {/* Verified Badge */}
+                <span className="inline-flex items-center text-gray-700 dark:text-gray-300" title="Verified Member">
+                  <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                  </svg>
                 </span>
+
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  • Following
+                </span>
+
+                {isPseudonymous && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                    <UserCircle className="h-3 w-3" />
+                    Alias
+                  </span>
+                )}
+
+                {/* Open to Support Mentor Badge */}
+                {!isPseudonymous && post.author?.open_to_help && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800">
+                    <HeartHandshake className="h-3 w-3" />
+                    Open to Support
+                  </span>
+                )}
+
+                {post.visibility === 'circle' && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-700 bg-purple-50 dark:bg-purple-950/60 dark:text-purple-300 px-2 py-0.2 rounded-full">
+                    <Users className="h-3 w-3" />
+                    {post.circle?.name || 'Circle'}
+                  </span>
+                )}
+              </div>
+
+              {/* Line 2: Author Headline / Context */}
+              {authorContext && !isPseudonymous ? (
+                <p className="text-xs font-medium text-gray-600 dark:text-gray-400 truncate max-w-md sm:max-w-lg leading-tight">
+                  {authorContext}
+                </p>
               ) : (
-                <Link
-                  href={`/app/profile/${post.author_id}`}
-                  className="font-semibold text-sm text-gray-950 hover:text-primary hover:underline transition-colors dark:text-white truncate"
-                >
-                  {authorName}
-                </Link>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 truncate leading-tight">
+                  Product & Growth Specialist • Humanverse Community
+                </p>
               )}
 
-              {isPseudonymous && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-                  <UserCircle className="h-3 w-3" />
-                  Alias
+              {/* Line 3: Timestamp & Globe */}
+              <div className="flex items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                <span>{formatRelativeTime(post.created_at)}</span>
+                <span>•</span>
+                <span className="inline-flex items-center" title="Public to network">
+                  🌐
                 </span>
-              )}
-
-              {/* Open to Support Mentor Badge */}
-              {!isPseudonymous && post.author?.open_to_help && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800">
-                  <HeartHandshake className="h-3 w-3" />
-                  Open to Support
-                </span>
-              )}
-
-              {authorContext && !isPseudonymous && (
-                <span className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[200px]">
-                  · {authorContext}
-                </span>
-              )}
-
-              <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">
-                · {formatRelativeTime(post.created_at)}
-              </span>
-
-              {post.visibility === 'circle' && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-700 bg-purple-50 dark:bg-purple-950/60 dark:text-purple-300 px-2 py-0.2 rounded-full">
-                  <Users className="h-3 w-3" />
-                  {post.circle?.name || 'Circle'}
-                </span>
-              )}
+              </div>
             </div>
 
-            {/* Top right actions */}
-            <div className="flex items-center gap-1 ml-auto">
+            {/* Top right actions (··· and ✕) */}
+            <div className="flex items-center gap-0.5 ml-auto shrink-0">
               <button
                 type="button"
                 onClick={handleToggleBookmark}
@@ -338,7 +364,7 @@ export function PostComponent({
               {isAuthor && (
                 <DropdownMenu open={showDropdown} onOpenChange={setShowDropdown}>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-gray-600">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white">
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -356,6 +382,17 @@ export function PostComponent({
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
+
+              {/* Dismiss / Hide button */}
+              <button
+                type="button"
+                onClick={() => toast.info('Post hidden from your feed')}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                title="Hide this post"
+                aria-label="Hide post"
+              >
+                <span className="text-sm font-bold leading-none">✕</span>
+              </button>
             </div>
           </div>
 
