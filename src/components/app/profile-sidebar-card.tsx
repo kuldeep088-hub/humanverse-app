@@ -75,19 +75,15 @@ export function ProfileSidebarCard({
             </Link>
           </div>
 
-          {/* User Name & LinkedIn Badge */}
+          {/* User Name */}
           <div className="space-y-1">
             <Link
               href="/app/profile/me"
-              className="group/name inline-flex items-center gap-1.5 focus:outline-none"
+              className="group/name inline-block focus:outline-none"
             >
               <h2 className="text-base sm:text-[17px] font-bold text-gray-950 dark:text-white group-hover/name:text-primary group-hover/name:underline transition-colors leading-tight">
                 {displayName}
               </h2>
-              {/* Gold/Orange 'in' Badge */}
-              <span className="inline-flex h-4 w-4 items-center justify-center rounded-[3px] bg-[#d97706] text-[10px] font-black text-white shadow-2xs">
-                in
-              </span>
             </Link>
 
             {/* Headline */}
